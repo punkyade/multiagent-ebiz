@@ -15,6 +15,7 @@ flavor 템플릿(claude | codex | antigravity)을 대상 폴더에 복사한다.
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import shutil
 import subprocess
@@ -34,6 +35,17 @@ TEMPLATES_DIR = SCRIPT_DIR / "templates"
 FLAVORS = ("claude", "codex", "antigravity")
 # 사용자 데이터 디렉토리 — 내용물은 절대 덮어쓰거나 지우지 않는다(.gitkeep만 보장).
 PRESERVE_DIRS = ("tasks", "_local")
+
+# 프로젝트 소유 파일 — **대상에 이미 있으면 덮지 않는다.**
+# 이 시스템은 보통 기존 프로젝트 폴더에 얹어 쓰는데, 템플릿에 같은 이름의 파일이 있다는
+# 이유로 프로젝트의 README·.gitignore를 조용히 갈아엎으면 안 된다. 실제 사고 2건:
+#   ssaksseuri  — 프로젝트 CLAUDE.md 유실(git 아님 → .multiagent-bak 하나가 유일한 사본)
+#   Pipleline   — README.md 교체 + .gitignore 삭제로 빌드 산출물이 git에 노출
+# 이 파일들은 생성 시스템 동작에 필수가 아니다(validate C1 필수 목록에 없다).
+PROJECT_OWNED = ("README.md", ".gitignore", "LICENSE", "NOTICE",
+                 "CHANGELOG.md", "KNOWN_ISSUES.md")
+# 병합 대상 — 덮어쓰면 프로젝트가 쓰던 MCP 서버가 사라진다.
+MCP_FILE = ".mcp.json"
 
 # flavor별 지침파일(에이전트가 자동 로드) — validate.py FLAVOR['instruction']과 일치해야.
 INSTRUCTION_FILE = {"claude": "CLAUDE.md", "codex": "AGENTS.md", "antigravity": "AGENTS.md"}
@@ -84,10 +96,16 @@ def is_user_data(rel: Path) -> bool:
     return len(rel.parts) >= 1 and rel.parts[0] in PRESERVE_DIRS and rel.name != ".gitkeep"
 
 
-def copy_template(template_dir: Path, target: Path, dry: bool) -> list[Path]:
-    """템플릿 파일을 target에 복사. target-only 파일(사용자 tasks/ 작업물)은
-    삭제하지 않으므로 update 모드에서 자동 보존된다."""
+def copy_template(template_dir: Path, target: Path,
+                  dry: bool) -> tuple[list[Path], list[Path]]:
+    """템플릿 파일을 target에 복사 → (written, skipped).
+
+    target-only 파일(사용자 tasks/ 작업물)은 삭제하지 않으므로 update 모드에서 자동 보존된다.
+    PROJECT_OWNED는 **이미 있으면 건너뛴다** — 기존 프로젝트 폴더에 얹을 때 그 프로젝트의
+    README·.gitignore를 갈아엎지 않기 위해서다. MCP 설정은 병합으로 따로 처리한다.
+    """
     written: list[Path] = []
+    skipped: list[Path] = []
     for src in sorted(template_dir.rglob("*")):
         if src.is_dir():
             continue
@@ -95,11 +113,50 @@ def copy_template(template_dir: Path, target: Path, dry: bool) -> list[Path]:
         if is_user_data(rel):  # 방어적: 템플릿엔 .gitkeep만 있어 보통 도달 안 함
             continue
         dest = target / rel
+        rel_posix = rel.as_posix()
+        if rel_posix == MCP_FILE:
+            merge_mcp(src, dest, dry)
+            written.append(rel)
+            continue
+        if rel_posix in PROJECT_OWNED and dest.exists():
+            skipped.append(rel)
+            continue
         if not dry:
             dest.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(src, dest)
         written.append(rel)
-    return written
+    return written, skipped
+
+
+def merge_mcp(src: Path, dest: Path, dry: bool) -> None:
+    """`.mcp.json` 병합 — 프로젝트가 쓰던 mcpServers를 남기고 템플릿 서버만 더한다.
+
+    통째로 덮으면 그 프로젝트의 MCP 서버 설정이 사라진다. 같은 키가 이미 있으면
+    프로젝트 값을 존중한다(우리 것으로 갈아치우지 않는다).
+    """
+    if dry:
+        return
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    tpl = json.loads(src.read_text(encoding="utf-8"))
+    if not dest.exists():
+        dest.write_text(json.dumps(tpl, ensure_ascii=False, indent=2) + "\n",
+                        encoding="utf-8", newline="\n")
+        return
+    try:
+        cur = json.loads(dest.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        # 읽을 수 없으면 손대지 않는다 — 판단 불가 상태에서 덮는 것이 더 나쁘다
+        print(f"  [warn] {MCP_FILE} 를 읽을 수 없어 병합을 건너뜁니다 (원본 유지)")
+        return
+    servers = cur.setdefault("mcpServers", {})
+    added = []
+    for name, spec in (tpl.get("mcpServers") or {}).items():
+        if name not in servers:
+            servers[name] = spec
+            added.append(name)
+    if added:
+        dest.write_text(json.dumps(cur, ensure_ascii=False, indent=2) + "\n",
+                        encoding="utf-8", newline="\n")
 
 
 def preserve_instruction(target: Path, flavor: str, old_text: str | None, dry: bool) -> int:
@@ -154,9 +211,12 @@ def main() -> None:
     instr_path = target / INSTRUCTION_FILE[flavor]
     old_instr = instr_path.read_text(encoding="utf-8") if instr_path.is_file() else None
 
-    written = copy_template(template_dir, target, dry=args.dry_run)
+    written, skipped = copy_template(template_dir, target, dry=args.dry_run)
     prefix = "(dry) " if args.dry_run else ""
     print(f"\n  {prefix}{len(written)}개 파일 {'복사 예정' if args.dry_run else '복사 완료'}.")
+    if skipped:
+        print(f"  {prefix}기존 파일 {len(skipped)}개는 건드리지 않음(프로젝트 소유): "
+              f"{', '.join(p.as_posix() for p in skipped)}")
 
     kept = preserve_instruction(target, flavor, old_instr, dry=args.dry_run)
     if old_instr is not None:

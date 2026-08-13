@@ -5,6 +5,29 @@
 (정본: `generator/templates/{claude,codex}/CHANGELOG.md`)를 참조한다.
 형식은 [Keep a Changelog](https://keepachangelog.com/), 버전은 [Semantic Versioning](https://semver.org/lang/ko/)을 따른다.
 
+## [3.5.0-ebiz.12] - 2026-08-13
+
+**기존 프로젝트 폴더에 얹는 것이 정상 경로**임이 확인돼(팀원 각자 자기 프로젝트에서 사용),
+생성기가 프로젝트 파일을 덮던 동작을 고쳤다.
+
+### Fixed
+- **생성기가 프로젝트 파일을 조용히 덮어썼다.** 템플릿에 같은 이름이 있다는 이유로
+  `README.md`·`.gitignore`·`LICENSE`·`NOTICE`·`CHANGELOG.md`·`KNOWN_ISSUES.md`를 갈아엎었고,
+  `CLAUDE.md` 하나만 백업했다. 실제 사고 2건:
+  - `ssaksseuri` — 프로젝트 지침 유실(git 저장소가 아니라 `.multiagent-bak` 하나가 유일한 사본)
+  - `Pipleline` — `README.md`가 하네스 문서로 교체 + `.gitignore` 삭제로 **빌드 산출물이
+    git에 노출**(`*.exe`·`__pycache__`가 untracked로 부상)
+  → `PROJECT_OWNED` 6종은 **대상에 이미 있으면 건너뛴다**. 건드리지 않은 파일을 설치 후
+  목록으로 출력한다. 이 파일들은 생성 시스템 동작에 필수가 아니다(validate C1 대상 아님).
+- **`.mcp.json`을 통째로 덮어 프로젝트의 MCP 서버가 사라지던 문제** — 이제 **병합**한다.
+  기존 `mcpServers`를 남기고 템플릿 서버만 더하며, 같은 키가 있으면 프로젝트 값을 존중한다.
+  읽을 수 없는 JSON이면 손대지 않고 경고만 남긴다.
+
+### Added
+- `tests/test_update_preserve.py::existing_project_checks` (6) — 기존 프로젝트 폴더에
+  얹었을 때 README·.gitignore·LICENSE 보존, 시스템 파일 정상 설치, MCP 병합을 단언한다.
+  **이 테스트가 없어서 같은 사고가 두 번 났다.**
+
 ## [3.5.0-ebiz.11] - 2026-08-13
 
 팀 운영 방식 확정(**개인별 폴더 1개 · 포크 repo PR 환류 · 동시 작업 없음**)에 맞춘 온보딩.
