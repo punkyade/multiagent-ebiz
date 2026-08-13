@@ -9,6 +9,8 @@ knot·요금가드 설치는 v3.0.0부터 loadout 담당 — 주입 테스트는
 """
 from __future__ import annotations
 
+import _utf8  # noqa: F401  (출력 인코딩 UTF-8 고정 — 반드시 print보다 먼저)
+
 import subprocess
 import sys
 import tempfile

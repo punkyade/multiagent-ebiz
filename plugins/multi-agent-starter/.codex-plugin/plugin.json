@@ -1,6 +1,6 @@
 {
   "name": "multiagent-ebiz",
-  "version": "3.5.0-ebiz.5",
+  "version": "3.5.0-ebiz.6",
   "description": "ebiz 내부용 파일 기반 멀티에이전트 오케스트레이션 시스템 생성기. Codex/Claude에서 \"멀티 에이전트 시스템 구성해줘\"로 시스템을 대상 폴더에 결정적으로 생성 (flavor: claude | codex | antigravity). (원작: netwaif/multi-agent-starter)",
   "author": {
     "name": "punkyade",

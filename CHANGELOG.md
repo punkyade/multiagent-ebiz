@@ -5,6 +5,30 @@
 (정본: `generator/templates/{claude,codex}/CHANGELOG.md`)를 참조한다.
 형식은 [Keep a Changelog](https://keepachangelog.com/), 버전은 [Semantic Versioning](https://semver.org/lang/ko/)을 따른다.
 
+## [3.5.0-ebiz.6] - 2026-08-13
+
+CI를 실제로 초록불로 만든 릴리스. 도입 후 4런 연속 실패하고 있었고, 원인 2건 모두
+**로컬 1개 OS에서는 원리적으로 재현 불가능한** 결함이었다.
+
+### Fixed
+- **ZIP 평탄화 배포에서 `validate.py`가 모듈 로드 단계에서 사망** (CI ubuntu, `package` 잡).
+  모듈 상수 `CATALOG_ROOT = SCRIPT_DIR.parents[4]`가 IndexError. `build_zip.py`는
+  generator/ 내용을 ZIP 루트로 평탄화하므로 추출 후 경로가 `/tmp/xxx/`처럼 얕아진다.
+  ZIP에서 쓰지도 않는 `--repo-check` 상수 하나 때문에 flavor 검사까지 못 돌았다.
+  → `_ancestor()` 헬퍼(깊이 부족 시 최상위, 루트 경로도 처리).
+  Windows 임시경로·macOS `/var/folders/…`는 깊어서 안 보이고 **리눅스 `/tmp`에서만** 터진다.
+- **Python 테스트 5개 전량이 첫 print에서 크래시** (CI windows, `verify` 잡).
+  테스트가 결과를 한글로 출력하는데 CI windows-latest는 **영문 로케일(cp1252)** 이라
+  `UnicodeEncodeError`. 테스트 내용과 무관하게 스위트가 전멸했다.
+  생성기·도구 스크립트 7종에는 UTF-8 고정을 넣었으면서 **테스트 파일 자신들에는
+  빠뜨린** 누락. 한국어 Windows(cp949)는 한글을 인코딩할 수 있어 로컬에서 끝내 재현 안 됨.
+  → `tests/_utf8.py` 공유 모듈 + 각 테스트 `import _utf8`.
+  로컬 재현법: `PYTHONIOENCODING=cp1252 bash tests/run.sh`
+
+### Added
+- `tests/test_generate.py::shallow_path_check` — 얕은 경로에서 validate 상수 계산 회귀 가드.
+  (이 테스트가 작성 직후 내 첫 수정의 버그 — 루트 경로에서 `parents[-1]` 재-IndexError — 를 잡았다.)
+
 ## [3.5.0-ebiz.5] - 2026-08-13
 
 gemini(agy) 워커 **실호출 검증 완료** — 그 과정에서 조용한 결함 1건 발견·수정.

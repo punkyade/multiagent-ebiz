@@ -7,6 +7,8 @@
 """
 from __future__ import annotations
 
+import _utf8  # noqa: F401  (출력 인코딩 UTF-8 고정 — 반드시 print보다 먼저)
+
 import json
 import shutil
 import subprocess
