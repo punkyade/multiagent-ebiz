@@ -45,6 +45,18 @@ WRITE_SCOPE = re.compile(r"^\s*write_scope:\s*(.+?)\s*$", re.M)
 TARGET_REPO = re.compile(r"^\s*target_repo:\s*(.+?)\s*$", re.M)
 
 INTERNAL_SCOPES = {"none", "tasks-only"}
+# brief 템플릿의 미치환 자리표시자 — 실제 값으로 보면 안 된다
+TARGET_PLACEHOLDERS = {"N/A", "", "<absolute-path>", "/absolute/path/to/repo"}
+
+
+def yaml_value(raw: str) -> str:
+    """`값   # 주석` 에서 값만 뽑는다. YAML은 공백 뒤 `#`부터 주석이다.
+
+    이걸 안 하면 템플릿의 `write_scope: none    # none | tasks-only | "src/**" 등`이
+    통째로 값이 되어 INTERNAL_SCOPES에 안 걸리고 **외부 쓰기로 오판**한다 —
+    표준 템플릿을 그대로 쓴 모든 brief가 위반으로 잡힌다(2026-08-13 검출).
+    """
+    return re.sub(r"\s+#.*$", "", raw).strip().strip("\"'")
 
 
 def strip_comments(text: str) -> str:
@@ -104,12 +116,12 @@ def external_write_briefs(task_dir: Path) -> list[tuple[str, str, str | None]]:
         m = WRITE_SCOPE.search(text)
         if not m:
             continue
-        scope = m.group(1).strip().strip("\"'")
+        scope = yaml_value(m.group(1))
         if scope in INTERNAL_SCOPES or not scope:
             continue
         tr = TARGET_REPO.search(text)
-        target = tr.group(1).strip().strip("\"'") if tr else None
-        if target in ("N/A", "<absolute-path>", ""):
+        target = yaml_value(tr.group(1)) if tr else None
+        if target in TARGET_PLACEHOLDERS:
             target = None
         out.append((brief.parent.name, scope, target))
     return out

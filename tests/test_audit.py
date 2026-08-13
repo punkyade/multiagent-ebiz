@@ -148,6 +148,18 @@ def main() -> None:
         0,
         briefs={"codex-main": "target_repo: /abs/repo\nwrite_scope: src/**\n"})
 
+    # C7b (핵심) 표준 brief 템플릿의 YAML 인라인 주석을 값으로 오독하지 않아야.
+    #     `write_scope: none    # none | tasks-only | "src/**" 등` 을 통째로 값으로 읽으면
+    #     INTERNAL_SCOPES에 안 걸려 표준 템플릿을 쓴 모든 brief가 외부 쓰기로 오판된다.
+    fails += case(
+        "C7b write_scope 인라인 주석 오독 없음",
+        APPROVED_TWO,
+        "[2026-08-13 10:00] [WORKER_CALL] codex-main brief 전달\n",
+        0,
+        briefs={"codex-main":
+                'target_repo: /absolute/path/to/repo    # 작업 대상 절대 경로 (없으면 N/A)\n'
+                'write_scope: none             # none | tasks-only | "src/**, tests/**" 등 패턴\n'})
+
     # C7 tasks-only 는 외부 쓰기가 아니므로 APPROVAL 불필요
     fails += case(
         "C7 tasks-only 는 외부 쓰기 아님",

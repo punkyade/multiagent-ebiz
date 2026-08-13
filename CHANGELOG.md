@@ -5,6 +5,35 @@
 (정본: `generator/templates/{claude,codex}/CHANGELOG.md`)를 참조한다.
 형식은 [Keep a Changelog](https://keepachangelog.com/), 버전은 [Semantic Versioning](https://semver.org/lang/ko/)을 따른다.
 
+## [3.5.0-ebiz.7] - 2026-08-13
+
+### Added
+- **작업 폴더 스캐폴더 `_shared/new-task.py`** (3 flavor) — `tasks/<작업명>/` 한 벌
+  (task.md · context.md · log.md · sources/ · artifacts/ · workers/<역할>/brief.md)을
+  템플릿에서 결정적으로 생성. 6명이 매일 반복하는 손복사를 없앤다 — 복사가 어긋나면
+  mat 파싱·`audit-approvals.py`·`check-limits.py`가 전부 대상을 놓친다.
+  ```bash
+  python3 _shared/new-task.py <작업명> --workers claude-main,codex-main --goal "한 문장"
+  ```
+  - **`workers_approved`는 채우지 않는다** — 스캐폴더가 미리 채우면 승인 게이트가
+    무의미해진다. `--workers`는 `planned_workers`(계획)만 채운다. 계획 ≠ 승인.
+  - 역할은 `backends.json`의 workers 키로 검증(flavor마다 풀이 달라 하드코딩 안 함).
+  - 기존 작업 덮어쓰기 거부, 경로 구분자·`..` 이름 거부, `--dry-run` 지원.
+- `tests/test_new_task.py`(11) — C3(승인 게이트 미충전)·C2(mat 파싱 형식 유지)가 핵심 가드.
+  C7은 생성 직후 `check-limits`·`audit-approvals`가 통과하는지 보는 통합 케이스다.
+
+### Fixed
+- **`audit-approvals.py`가 YAML 인라인 주석을 값으로 오독** — 표준 brief 템플릿의
+  `write_scope: none    # none | tasks-only | "src/**" 등 패턴` 을 통째로 값으로 읽어
+  `INTERNAL_SCOPES`에 안 걸렸고, 결과적으로 **표준 템플릿을 그대로 쓴 모든 brief가
+  "외부 쓰기 조건 미충족"으로 오탐**됐다. `target_repo`의 자리표시자
+  (`/absolute/path/to/repo`)도 실제 경로로 취급되던 문제 동반 수정.
+  위 C7 통합 케이스가 잡았다 — 단위 테스트만으로는 안 보이던 결함이다.
+  회귀 가드: `tests/test_audit.py` C7b.
+
+### Changed
+- CLAUDE.md Task Lifecycle 1번을 스캐폴더 사용으로 갱신(3 flavor).
+
 ## [3.5.0-ebiz.6] - 2026-08-13
 
 CI를 실제로 초록불로 만든 릴리스. 도입 후 4런 연속 실패하고 있었고, 원인 2건 모두
