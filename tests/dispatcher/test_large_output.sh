@@ -38,8 +38,11 @@ assert_eq "8000줄 전부 보존" 8000 "$LINES"
 
 # 길이도 함께 기록(argv 한계 ~32KB를 크게 넘는지)
 LEN="$(jq -r '.stdout | length' <<<"$OUT")"
-if [ "$LEN" -gt 150000 ]; then echo "  PASS: stdout 길이 $LEN자 (argv 한계 훨씬 초과분 통과)"; PASS=$((PASS+1))
-else echo "  FAIL: stdout 길이 부족 ($LEN자)"; FAIL=$((FAIL+1)); fi
+# `${LEN}` 중괄호 필수: macOS 기본 bash 3.2는 변수명을 바이트 단위로 읽어 뒤따르는 한글까지
+# 이름에 포함시킨다(`$LEN자` → 변수 `LEN자` → set -u 에서 unbound variable). bash 5.x는
+# 멀티바이트를 인식해 끊기 때문에 리눅스·Git Bash에서는 드러나지 않는다.
+if [ "$LEN" -gt 150000 ]; then echo "  PASS: stdout 길이 ${LEN}자 (argv 한계 훨씬 초과분 통과)"; PASS=$((PASS+1))
+else echo "  FAIL: stdout 길이 부족 (${LEN}자)"; FAIL=$((FAIL+1)); fi
 
 rm -rf "$ROOT"
 finish

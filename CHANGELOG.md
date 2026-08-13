@@ -5,6 +5,20 @@
 (정본: `generator/templates/{claude,codex}/CHANGELOG.md`)를 참조한다.
 형식은 [Keep a Changelog](https://keepachangelog.com/), 버전은 [Semantic Versioning](https://semver.org/lang/ko/)을 따른다.
 
+## [3.5.0-ebiz.10] - 2026-08-13
+
+### Fixed
+- **macOS bash 3.2에서만 터지는 셸 결함** — `echo "길이 $LEN자"` 가
+  `LEN자: unbound variable` 로 죽었다. macOS 기본 `/bin/bash`는 3.2이고 **변수명을 바이트
+  단위로 읽어 뒤따르는 한글까지 이름에 포함**시킨다. bash 5.x(리눅스·Git Bash)는
+  멀티바이트를 인식해 `$LEN`에서 끊으므로 **다른 두 OS에서는 드러나지 않았다.**
+  → `${LEN}` 중괄호 명시.
+
+### Added
+- **`tests/test_shell_portability.py`** — 셸 스크립트 전수 린트. `$VAR` 뒤에 비-ASCII가
+  바로 붙은 곳을 잡는다(주석 줄은 제외). 이 저장소는 셸에 한글 메시지를 많이 써서 재발
+  가능성이 높다. 일부러 깨뜨린 줄을 검출하는 것까지 확인했다.
+
 ## [3.5.0-ebiz.9] - 2026-08-13
 
 **첫 실전 작업**(`mat-purpose-fix`)을 하네스로 수행하며 나온 결과. 작업 자체(KI-1 해소)보다
