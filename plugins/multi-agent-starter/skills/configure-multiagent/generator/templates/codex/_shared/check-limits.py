@@ -62,10 +62,19 @@ def is_korean(text: str) -> bool:
     return hangul >= 0.10 * max(1, dense)
 
 
+def limit_for(p: Path) -> tuple[int, int] | None:
+    """파일명 → 한도. 프리셋은 한 워커가 여러 단계를 맡으면 `brief-<슬롯>.md`도 만든다."""
+    if p.name == "context.md":
+        return LIMITS["context.md"]
+    if p.name == "brief.md" or p.name.startswith("brief-"):
+        return LIMITS["brief.md"]
+    return None
+
+
 def targets(task_dir: Path) -> list[Path]:
     out = [task_dir / "context.md"]
-    out += sorted((task_dir / "workers").glob("*/brief.md"))
-    return [p for p in out if p.is_file()]
+    out += sorted((task_dir / "workers").glob("*/brief*.md"))
+    return [p for p in out if p.is_file() and limit_for(p)]
 
 
 def check_task(task_dir: Path, verbose: bool) -> tuple[int, list[str]]:
@@ -76,7 +85,7 @@ def check_task(task_dir: Path, verbose: bool) -> tuple[int, list[str]]:
         return 0, [f" [SKIP] {task_dir.name} (brief·context 없음)"]
 
     for p in files:
-        limit_c, limit_w = LIMITS[p.name]
+        limit_c, limit_w = limit_for(p)
         text = p.read_text(encoding="utf-8")
         raw_c, raw_w, con_c, con_w = measure(text)
         ko = is_korean(text)

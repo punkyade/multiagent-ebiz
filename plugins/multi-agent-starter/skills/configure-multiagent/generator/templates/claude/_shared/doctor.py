@@ -139,6 +139,28 @@ def main() -> int:
         else:
             emit(WARN, "D5 .mcp.json 없음 — mcp 워커는 호스트 설정에 의존한다")
 
+    # D7 agy 파일 읽기 권한 — 없으면 이미지·PDF 검수가 **조용히** 빈 결과를 낸다.
+    #    agy 1.1.12 헤드리스는 read_file 권한을 자동 거부하고 exit 0으로 끝낸다
+    #    (디스패처가 status=empty 로 잡지만, 원인을 여기서 미리 알려주는 게 싸다).
+    uses_agy = any((r.get("cli") or {}).get("command") == "agy"
+                   for r in workers.values() if isinstance(r, dict))
+    if uses_agy:
+        s = Path.home() / ".gemini" / "antigravity-cli" / "settings.json"
+        rules: list = []
+        try:
+            rules = ((json.loads(s.read_text(encoding="utf-8")).get("permissions") or {})
+                     .get("allow") or [])
+        except (OSError, json.JSONDecodeError):
+            pass
+        if any(str(r).startswith("read_file(") for r in rules):
+            emit(OK, "D7 agy 파일 읽기 권한 설정됨 (이미지·PDF 검수 가능)")
+        else:
+            emit(WARN,
+                 "D7 agy 파일 읽기 권한 없음 — 이미지·PDF 검수가 빈 결과로 끝난다.\n"
+                 f"        {s} 에 아래를 추가:\n"
+                 '        "permissions": { "allow": ["read_file(*)"] }\n'
+                 "        (주의: ~/.gemini/settings.json 이 아니라 antigravity-cli/ 쪽이다)")
+
     # D6 디스패처 드라이런 (모델 호출 없음)
     if not needs_dispatcher:
         pass

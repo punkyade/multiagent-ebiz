@@ -32,6 +32,7 @@ def fake_root(base: Path) -> Path:
     (root / "_shared").mkdir(parents=True)
     shutil.copytree(REPO / "_templates", root / "_templates")
     shutil.copy2(REPO / "_shared" / "backends.json", root / "_shared" / "backends.json")
+    shutil.copy2(REPO / "_shared" / "capability-profile.md", root / "_shared" / "capability-profile.md")
     return root
 
 
@@ -41,9 +42,9 @@ def run(root: Path, *args: str) -> subprocess.CompletedProcess:
                           capture_output=True, text=True, encoding="utf-8", env=env)
 
 
-def run_tool(tool: Path, target: Path) -> subprocess.CompletedProcess:
+def run_tool(tool: Path, target: Path, *extra: str) -> subprocess.CompletedProcess:
     env = dict(os.environ, PYTHONUTF8="1")
-    return subprocess.run([sys.executable, str(tool), str(target)],
+    return subprocess.run([sys.executable, str(tool), str(target), *extra],
                           capture_output=True, text=True, encoding="utf-8", env=env)
 
 
@@ -132,6 +133,47 @@ def main() -> None:
         run(root, "가상작업", "--dry-run")
         fails += check("C11 dry-run 은 생성 안 함",
                        not (root / "tasks" / "가상작업").exists())
+
+        # --- 프리셋 (design-diff) ---
+        rp = run(root, "시안대조", "--preset", "design-diff")
+        p = root / "tasks" / "시안대조"
+        out = rp.stdout or ""
+
+        # C12 슬롯 → 워커 해석이 capability-profile 기준으로 되는가 (claude flavor)
+        fails += check("C12 프리셋 슬롯→워커 해석",
+                       rp.returncode == 0
+                       and "[computer-use] → codex-main" in out
+                       and "[multimodal] → gemini" in out,
+                       out + (rp.stderr or ""))
+
+        # C13 (핵심) 한 워커가 두 단계를 맡으면 brief가 겹치지 않아야.
+        #     claude flavor는 engineer·computer-use 가 둘 다 codex-main 이다.
+        fails += check("C13 동일 워커 2단계 → brief 충돌 없음",
+                       (p / "workers" / "codex-main" / "brief.md").is_file()
+                       and (p / "workers" / "codex-main" / "brief-engineer.md").is_file())
+
+        # C14 프리셋 brief 내용이 들어갔는가 (기본 템플릿이 아니라)
+        cap = (p / "workers" / "codex-main" / "brief.md").read_text(encoding="utf-8")
+        fails += check("C14 프리셋 본문 적용 + 치환",
+                       "구현 화면을 캡처" in cap
+                       and cap.startswith("# Brief — codex-main / 시안대조")
+                       and "<task-name>" not in cap)
+
+        # C15 프리셋 brief 도 한도·감사 대상에 포함 (brief-<슬롯>.md 누락 방지)
+        rl2 = run_tool(CHECK_LIMITS, p, "-v")   # 통과 항목은 -v 에서만 출력된다
+        fails += check("C15 프리셋 brief 전부 한도 통과 + brief-<슬롯> 포함",
+                       rl2.returncode == 0 and "brief-engineer.md" in (rl2.stdout or ""),
+                       rl2.stdout or "")
+
+        # C16 --preset 과 --workers 동시 사용 거부
+        rc = run(root, "충돌작업", "--preset", "design-diff", "--workers", "gemini")
+        fails += check("C16 --preset 과 --workers 동시 사용 거부", rc.returncode == 2)
+
+        # C17 없는 프리셋 → 사용 가능 목록 안내
+        rn = run(root, "없는프리셋작업", "--preset", "nope")
+        fails += check("C17 없는 프리셋 거부 + 목록 안내",
+                       rn.returncode == 2 and "design-diff" in (rn.stderr or ""),
+                       rn.stderr or "")
 
     print(f"test_new_task: {'all pass' if not fails else f'{fails} fail'}")
     sys.exit(1 if fails else 0)

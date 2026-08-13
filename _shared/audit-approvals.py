@@ -111,7 +111,9 @@ def external_write_briefs(task_dir: Path) -> list[tuple[str, str, str | None]]:
     workers = task_dir / "workers"
     if not workers.is_dir():
         return out
-    for brief in sorted(workers.glob("*/brief.md")):
+    # `brief*.md` — 프리셋은 한 워커가 여러 단계를 맡으면 `brief-<슬롯>.md`도 만든다.
+    # 그 파일에도 write_scope가 들어 있으므로 빠뜨리면 외부 쓰기 검사에 구멍이 난다.
+    for brief in sorted(workers.glob("*/brief*.md")):
         text = strip_comments(read(brief) or "")
         m = WRITE_SCOPE.search(text)
         if not m:

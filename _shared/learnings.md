@@ -128,3 +128,12 @@
 - **수정**: 디스패처에 `@model` 치환 추가(레코드 `.model` → 인자) + `args_template`을 `["--model","@model","--prompt","@brief_content"]`로. 모델명을 args에 **직접 적지 말 것** — 정본이 둘이 되면 다시 갈라진다. 회귀 가드: `tests/dispatcher/test_model_pin.sh`.
 - **일반 교훈**: ① **레코드의 설정값이 실제 호출에 전달되는지**는 별개 문제다. 전달되지 않는 값은 config가 아니라 주석이고, envelope에 실리면 **거짓 기록**이 된다(v3.5.0의 "미소비 config 제거"와 같은 계열). ② 외부 CLI는 버전업으로 플래그가 **생기기도** 한다 — 제약을 기록할 땐 버전을 함께 적고, 그 제약을 근거로 설계를 포기하기 전에 `--help`를 다시 본다. ③ 워커 스모크에서 "모델에게 자기 이름을 묻는" 한 줄이 이 계열 결함을 가장 싸게 잡는다.
 **worker**: orchestrator(무료 확인 → 유료 1회 스모크 → 재현·수정·재검증)
+
+## agy 헤드리스 파일 읽기 자동 거부 — 이미지 검수 정본 경로가 조용히 죽어 있었다 (2026-08-13, design-diff 프리셋 검증)
+- **증상**: `call_worker.sh gemini <brief>` (본문에 이미지 절대경로) 호출이 `status: ok`·`exit 0`·**stdout 완전 공백**. 어디에도 실패 신호가 없어 orchestrator가 성공으로 읽는다.
+- **근본 원인**: agy 1.1.12 헤드리스가 `read_file` 권한을 **자동 거부**한다(대화형이 아니라 프롬프트를 띄울 수 없어서). 사유는 stderr에만 남는다: `a tool required the "read_file" permission that headless mode cannot prompt for, so it was auto-denied`.
+- **해결**: `~/.gemini/antigravity-cli/settings.json` 에 `{"permissions":{"allow":["read_file(*)"]}}`. **`~/.gemini/settings.json`이 아니다** — 두 파일이 모두 존재하고, 후자에 넣으면 아무 효과가 없다(실측으로 한 번 헛짚었다). 규칙 형태는 agy 바이너리의 문자열(`read_file(*)`·`read_file(/)`)에서 확인.
+- **동반 발견**: 이미지 **2장 동시 전달은 정상**(22s exit 0, 각각 정확히 판별). 프리셋의 캡처↔시안 대조가 1회 호출로 된다.
+- **하네스 수정**: 디스패처에 **빈 출력 판정** 추가 — `exit 0` 인데 stdout이 비면 `status: empty` + 폴백 체인 진입(envelope의 `exit_code`는 자식 실제값 유지). `doctor.py` D7이 권한 설정을 사전 검사한다.
+- **일반 교훈**: ① 외부 CLI의 **권한 모델은 버전업으로 새로 생긴다**. 이전 실측("본문 절대경로 → exit 0, 픽셀크기 정확 반향")은 그 시점에 참이었고, 문서에 버전을 안 적으면 언제 거짓이 됐는지 알 수 없다. ② `exit 0`을 성공으로 믿지 말 것 — **빈 출력은 실패다.** 이 저장소에서만 같은 위장이 2번 나왔다(2026-07-03 `-p` 제거, 2026-08-13 권한 거부). ③ 설정 파일이 여러 개인 도구는 **어느 파일을 읽는지부터** 확인한다.
+**worker**: orchestrator(무료 단서 수집 → 유료 실측 4건 → 원인 격리·수정·재검증)

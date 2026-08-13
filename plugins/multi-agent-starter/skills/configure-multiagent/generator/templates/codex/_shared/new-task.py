@@ -50,6 +50,49 @@ def die(msg: str) -> None:
     raise SystemExit(2)
 
 
+SLOTS = ("strategist", "engineer", "computer-use", "reviewer", "multimodal")
+
+
+def slot_to_role(root: Path, slot: str, roles: list[str]) -> str | None:
+    """`capability-profile.md`의 「현재 배정」 표에서 슬롯 담당 워커를 찾는다.
+
+    배정 정본이 그 표이므로 하드코딩하지 않는다 — flavor마다 다르고, 프로필만 갱신하면
+    프리셋이 따라온다. 셀에 워커명이 없으면(예: antigravity의 multimodal =
+    "Orchestrator 직접") None을 돌려주고 호출측이 brief 생성을 건너뛴다.
+    """
+    try:
+        prof = (root / "_shared" / "capability-profile.md").read_text(encoding="utf-8")
+    except OSError:
+        return None
+    m = re.search(rf"^\|\s*{re.escape(slot)}\s*\|([^|]*)\|", prof, re.M)
+    if not m:
+        return None
+    cell = m.group(1)
+    found = [(cell.find(r), r) for r in roles if r in cell]
+    return min(found)[1] if found else None
+
+
+def load_preset(root: Path, name: str) -> list[tuple[str, str]]:
+    """프리셋 디렉토리 → [(슬롯, brief 원문)] — **파이프라인 순서대로**.
+
+    파일명은 `<순번>-<슬롯>.md` (예: `1-computer-use.md`). 순번을 파일명에 두는 이유:
+    단계 순서가 파이프라인의 의미 그 자체인데 알파벳 정렬에 맡기면 조용히 뒤집힌다.
+    """
+    d = root / "_templates" / "presets" / name
+    if not d.is_dir():
+        base = root / "_templates" / "presets"
+        avail = sorted(p.name for p in base.glob("*") if p.is_dir()) if base.is_dir() else []
+        die(f"프리셋 없음: {name}  (사용 가능: {avail or '-'})")
+    out: list[tuple[str, str]] = []
+    for p in sorted(d.glob("*.md")):
+        m = re.match(r"^\d+-(.+)$", p.stem)
+        if m and m.group(1) in SLOTS:
+            out.append((m.group(1), p.read_text(encoding="utf-8")))
+    if not out:
+        die(f"프리셋 '{name}' 에 `<순번>-<슬롯>.md` 형식 brief가 없다 ({d})")
+    return out
+
+
 def known_roles(root: Path) -> list[str]:
     """backends.json이 워커 정본 — flavor마다 풀이 달라 하드코딩하지 않는다."""
     try:
@@ -83,8 +126,13 @@ def main() -> int:
     ap.add_argument("--workers", default="",
                     help="planned_workers 에 넣을 역할 (쉼표 구분). 승인은 별개")
     ap.add_argument("--goal", default="", help="## Goal 한 문장")
+    ap.add_argument("--preset", default="",
+                    help="_templates/presets/<이름>/ 의 슬롯별 brief로 채운다 (예: design-diff)")
     ap.add_argument("--dry-run", action="store_true", help="만들지 않고 계획만 출력")
     args = ap.parse_args()
+
+    if args.preset and args.workers:
+        die("--preset 과 --workers 는 함께 쓸 수 없다 (프리셋이 슬롯→워커를 결정한다)")
 
     root = Path(os.environ.get("MULTIAGENT_ROOT")
                 or Path(__file__).resolve().parent.parent)
@@ -96,12 +144,26 @@ def main() -> int:
     if not NAME_OK.match(name):
         die(f"작업명에 쓸 수 없는 문자: '{name}' (한글·영숫자·-·_ 만, 경로 구분자 금지)")
 
+    valid = known_roles(root)
     roles = [r.strip() for r in args.workers.split(",") if r.strip()]
     if roles:
-        valid = known_roles(root)
         unknown = [r for r in roles if valid and r not in valid]
         if unknown:
             die(f"미정의 역할 {unknown} — backends.json 기준 유효 역할: {valid}")
+
+    # 프리셋: 슬롯 → 워커를 capability-profile에서 해석한다. 해석 안 되는 슬롯은
+    # 오케스트레이터가 직접 수행하는 자리라 brief를 만들지 않고 안내만 남긴다.
+    stages: list[tuple[str, str, str]] = []   # (슬롯, 역할, brief 원문) — 파이프라인 순서
+    orchestrator_slots: list[str] = []
+    if args.preset:
+        for slot, body in load_preset(root, args.preset):
+            role = slot_to_role(root, slot, valid)
+            if role is None:
+                orchestrator_slots.append(slot)
+                continue
+            stages.append((slot, role, body))
+            if role not in roles:
+                roles.append(role)
 
     task_dir = root / "tasks" / name
     if task_dir.exists():
@@ -125,12 +187,27 @@ def main() -> int:
         task_dir / "log.md": render(tpl / "log.md",
                                     [("# Log — [작업명]", f"# Log — {name}")]),
     }
-    for role in roles:
-        files[task_dir / "workers" / role / "brief.md"] = render(
-            tpl / "worker-brief.md",
-            [("# Brief — [worker-role] / [작업명]", f"# Brief — {role} / {name}"),
-             ("tasks/<task-name>/", f"tasks/{name}/"),
-             ("<role>", role)])
+    def brief_subs(role: str) -> list[tuple[str, str]]:
+        return [("# Brief — [worker-role] / [작업명]", f"# Brief — {role} / {name}"),
+                ("tasks/<task-name>/", f"tasks/{name}/"),
+                ("<role>", role)]
+
+    if stages:
+        # 한 워커가 여러 단계를 맡을 수 있다(예: claude flavor에서 engineer·computer-use는
+        # 둘 다 codex-main). 첫 단계는 표준 경로 brief.md, 이후 단계는 brief-<슬롯>.md 로
+        # 분리한다 — call_worker.sh 는 brief 경로를 인자로 받으므로 그대로 호출된다.
+        seen: set[str] = set()
+        for slot, role, body in stages:
+            fname = "brief.md" if role not in seen else f"brief-{slot}.md"
+            seen.add(role)
+            text = body
+            for old, new in brief_subs(role):
+                text = text.replace(old, new)
+            files[task_dir / "workers" / role / fname] = text
+    else:
+        for role in roles:
+            files[task_dir / "workers" / role / "brief.md"] = render(
+                tpl / "worker-brief.md", brief_subs(role))
 
     dirs = [task_dir / "sources", task_dir / "artifacts"]
 
@@ -149,6 +226,15 @@ def main() -> int:
     print(f"  생성 완료: tasks/{name}/  (파일 {len(files)}개)")
     if roles:
         print(f"  planned_workers: {', '.join(roles)}")
+    if stages:
+        print(f"  프리셋 '{args.preset}' 파이프라인:")
+        seen2: set[str] = set()
+        for i, (slot, role, _) in enumerate(stages, 1):
+            fname = "brief.md" if role not in seen2 else f"brief-{slot}.md"
+            seen2.add(role)
+            print(f"    {i}. [{slot}] → {role}  ({fname})")
+    for slot in orchestrator_slots:
+        print(f"  [{slot}] 은 이 flavor에서 워커가 없다 — 오케스트레이터가 직접 수행한다")
     print()
     print("  다음:")
     print(f"    1. tasks/{name}/task.md 의 Goal·Constraints 작성")

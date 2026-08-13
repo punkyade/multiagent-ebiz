@@ -165,6 +165,12 @@ run_backend() {
   local status="ok"
   [ "$rc" -ne 0 ] && status="error"
   [ "$rc" -eq 124 ] && status="timeout"
+  # exit 0인데 stdout이 비었으면 성공이 아니다. 외부 CLI가 권한 거부·플래그 미인식 등으로
+  # 조용히 아무것도 안 한 경우가 정확히 여기 걸린다 — 실측 2건 모두 exit 0으로 위장했다:
+  #   2026-07-03 agy가 `-p` 제거로 프롬프트를 무시(온보딩 인사만 반환)
+  #   2026-08-13 agy 헤드리스가 read_file 권한을 자동 거부(빈 출력)
+  # 사유는 stderr_sanitized에 남으므로 그것과 함께 읽는다.
+  [ "$status" = "ok" ] && [ ! -s "$out" ] && status="empty"
 
   redact <"$err" >"$errd"
   jq -n --arg status "$status" --argjson exit "$rc" \
@@ -172,6 +178,9 @@ run_backend() {
         --argjson dur "$dur" --arg backend "$ctype" --arg model "$model" \
         '{status:$status, exit_code:$exit, backend:$backend, model:$model,
           duration_s:$dur, stdout:$stdout, stderr_sanitized:$stderr}'
+  # empty도 실패로 취급해 폴백 체인이 돌게 한다. envelope의 exit_code는 자식의 실제
+  # 종료코드를 그대로 유지하고(진단 정보), 판정은 status로 한다.
+  [ "$status" = "empty" ] && return 65
   return "$rc"
 }
 

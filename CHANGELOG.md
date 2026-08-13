@@ -5,6 +5,45 @@
 (정본: `generator/templates/{claude,codex}/CHANGELOG.md`)를 참조한다.
 형식은 [Keep a Changelog](https://keepachangelog.com/), 버전은 [Semantic Versioning](https://semver.org/lang/ko/)을 따른다.
 
+## [3.5.0-ebiz.8] - 2026-08-13
+
+시안 대조 프리셋. 검증 과정에서 **이미지 검수 정본 경로가 조용히 죽어 있던 것**을 발견·수정.
+
+### Added
+- **프리셋 `design-diff`** (`_templates/presets/design-diff/`, 3 flavor) —
+  `[computer-use]` 캡처 → `[multimodal]` 대조 → `[engineer]` 수정. 디자인·퍼블·QA
+  3직군이 공유하는 "눈으로 보고 비교하는 일"을 고정 파이프라인으로.
+  ```bash
+  python3 _shared/new-task.py <작업명> --preset design-diff
+  ```
+  - 슬롯 → 워커는 `capability-profile.md`에서 해석하므로 flavor마다 자동으로 달라진다.
+    워커가 없는 슬롯(antigravity의 `multimodal`)은 brief를 만들지 않고 "오케스트레이터
+    직접"이라 안내한다.
+  - 한 워커가 두 단계를 맡으면(claude flavor의 `engineer`·`computer-use` = 둘 다
+    codex-main) 뒤 단계는 `brief-<슬롯>.md`로 분리해 충돌을 피한다.
+  - 프리셋 파일명은 `<순번>-<슬롯>.md` — 단계 순서가 파이프라인의 의미 그 자체라
+    알파벳 정렬에 맡기면 조용히 뒤집힌다.
+- **디스패처 빈 출력 판정** — `exit 0` 인데 stdout이 비면 `status: empty` + 폴백 체인
+  진입(envelope의 `exit_code`는 자식 실제값 유지). 이 저장소에서만 같은 위장이 2번
+  나왔다: 2026-07-03 agy `-p` 제거, 2026-08-13 권한 자동거부. 둘 다 `status: ok` 였다.
+  회귀 가드: `tests/dispatcher/test_empty_output.sh`(6).
+- **doctor D7** — agy 파일 읽기 권한 사전 검사. 미설정이면 붙여넣을 JSON을 출력한다.
+- `tests/test_new_task.py` 프리셋 6케이스 추가 (총 17).
+
+### Fixed
+- **agy 헤드리스 파일 읽기 자동 거부로 이미지·PDF 검수가 무력화돼 있었다.**
+  `routing.md`가 "단일 정본 경로, 필독"으로 못박고 실측까지 적어둔 경로가 agy 버전업으로
+  막혔고, `status: ok`·`exit 0`·빈 출력이라 **실패 신호가 어디에도 없었다.**
+  해결: `~/.gemini/antigravity-cli/settings.json` 에
+  `{"permissions":{"allow":["read_file(*)"]}}`.
+  **`~/.gemini/settings.json`이 아니다** — 두 파일이 다 존재하고 후자는 효과가 없다.
+- **`check-limits.py`·`audit-approvals.py`가 `brief-<슬롯>.md`를 검사 대상에서 누락** —
+  프리셋이 만드는 파일명이라 글롭을 `brief*.md`로 확장. 누락 시 외부 쓰기 검사에 구멍이 난다.
+
+### 실측 (2026-08-13)
+- 이미지 **2장 동시 전달 정상** — 22s, exit 0, 두 스크린샷 각각 정확히 판별.
+  프리셋의 캡처↔시안 대조가 1회 호출로 성립한다.
+
 ## [3.5.0-ebiz.7] - 2026-08-13
 
 ### Added
