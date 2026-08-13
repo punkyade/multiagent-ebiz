@@ -40,7 +40,7 @@ TEMPLATE_DIR = SCRIPT_DIR / "templates" / "claude"
 # 시스템 템플릿이 아닌 repo 인프라 — 재생성 소스에서 제외.
 # NOTE: 플러그인은 이제 plugins/ 하위에, 마켓 카탈로그는 .claude-plugin/·.agents/ 에 있다.
 # (dev 전용 도구 — 런타임/테스트 경로 아님. 새 레이아웃에서 전체 정합성은 별도 검토 필요.)
-INFRA_PREFIXES = ("plugins/", ".claude-plugin/", ".agents/", "dist/", "tests/", "docs/")
+INFRA_PREFIXES = ("plugins/", ".claude-plugin/", ".agents/", ".github/", "dist/", "tests/", "docs/")
 
 # front-page/패키지 문서 — 루트는 repo 첫 화면(설치 안내)·배포 버전 이력이고,
 # 설치된 타깃용 동명 문서는 templates/claude/ 에 독립 정본으로 둔다(서로 audience가

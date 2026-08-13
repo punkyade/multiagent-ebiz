@@ -149,9 +149,12 @@ self_test() {
   replace_in() {  # replace_in <file> <old> <new> — 패턴 부재는 no-op(사본이 무결로 남아 fixture 단계가 잡음)
     python3 - "$1" "$2" "$3" <<'PYEOF'
 import sys, pathlib
-p = pathlib.Path(sys.argv[1]); t = p.read_text()
+# encoding·newline 명시: 로케일이 UTF-8이 아닌 환경(예: 한국어 Windows cp949)에서
+# read_text()가 UnicodeDecodeError로 죽으면 치환이 no-op이 되고, fixture가 무결로 남아
+# self-test가 "깨뜨렸는데 통과함"으로 전량 오탐한다. write는 LF 고정(.gitattributes 정책).
+p = pathlib.Path(sys.argv[1]); t = p.read_text(encoding="utf-8")
 if sys.argv[2] in t:
-    p.write_text(t.replace(sys.argv[2], sys.argv[3]))
+    p.write_text(t.replace(sys.argv[2], sys.argv[3]), encoding="utf-8", newline="\n")
 PYEOF
   }
   run_case() {  # run_case <이름> — 사전에 mutate 함수형 인자 없이, 호출측이 WORK 준비

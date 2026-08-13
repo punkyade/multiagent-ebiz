@@ -38,6 +38,8 @@
 - **토폴로지 4패턴** — Pipeline / Fan-out·Fan-in / Expert Pool / Producer-Reviewer
 - **불변식 자가점검** — 생성 직후 `validate.py`가 구조를 검증(PASS/FAIL)
 - **file-as-memory** — 런타임 상태 0, 모든 결정·승인·검증이 파일로 남는다
+- **직군 라우팅(사내 추가)** — `_shared/team-routing.md`. 기획·디자인·퍼블·프론트·백엔드·QA
+  6직군의 작업 유형을 능력 슬롯·토폴로지로 미리 매핑해 둔 층 (아래 "우리 팀 사용법")
 
 생성은 **결정적**이다 — 번들 템플릿을 그대로 복사하며, 모델이 시스템 파일을 창작하지 않는다.
 
@@ -75,9 +77,39 @@ python3 plugins/multi-agent-starter/skills/configure-multiagent/generator/init.p
 Orchestrator가 작업 폴더를 만들고 → 워커 승인을 요청한 뒤 → 진행한다.
 운영 규칙 전문은 생성된 폴더의 `CLAUDE.md`(claude) / `AGENTS.md`(codex·antigravity) 참조.
 
-## v1 → v2 마이그레이션 (기존 clone 사용자)
+## 우리 팀 사용법 — 직군별 진입점
 
-v1은 이 repo를 clone해 루트 파일을 그대로 썼다. v2에서는 **같은 폴더에 생성기를 다시 돌려**
+**워커는 직군이 아니라 능력이다.** "디자이너 워커"는 없다. 백엔드 담당자의 기획성 작업은
+`[strategist]` 슬롯으로 가고, 디자이너의 시안 검수는 `[multimodal]`로 간다.
+직군은 *누가 요청했나*이고, 슬롯은 *작업 성격이 무엇인가*다.
+
+라우팅은 3층이다. 아래로 갈수록 자주 바뀐다:
+
+| 층 | 파일 | 답하는 질문 |
+|----|------|------------|
+| 사내층 | `_shared/team-routing.md` | "퍼블 직군의 이 일은 어떤 슬롯 조합인가?" |
+| 안정층 | `_shared/routing.md` | "이 작업 성격은 어떤 슬롯인가?" |
+| 가변층 | `_shared/capability-profile.md` | "그 슬롯은 지금 어떤 워커가 맡나?" |
+
+직군 언어로 요청하면 오케스트레이터가 사내층부터 본다. 예:
+
+```
+> 이번 스프린트 결제 페이지 퍼블 끝났는데 시안이랑 맞는지 봐줘
+```
+
+퍼블 → "시안 대조" → `[computer-use]`(캡처) → `[multimodal]`(대조) → `[engineer]`(수정) 로 풀린다.
+
+> **이 팀에서 레버리지가 가장 큰 조합**: `[computer-use]` → `[multimodal]`.
+> 디자인 시안 검수 · 퍼블 시안 대조 · QA 결함 스크린샷 분석이 전부 같은 파이프라인이다.
+> 3개 직군이 공유하는 반복 작업이라 여기가 가장 크게 남는다.
+
+사내 판단이 바뀌면 `_shared/team-routing.md`만 고친다 — `routing.md`에는 포인터 한 줄만 두어
+업스트림 갱신을 병합할 때 충돌면을 최소화했다.
+
+<details>
+<summary>v1 → v2 마이그레이션 (업스트림 clone 사용자 — 사내 팀은 해당 없음)</summary>
+
+v1은 upstream repo를 clone해 루트 파일을 그대로 썼다. v2에서는 **같은 폴더에 생성기를 다시 돌려**
 시스템 파일만 최신화하면 된다 — 작업 데이터는 보존된다.
 
 1. 플러그인 설치(위 "설치 & 사용") 또는 ZIP 다운로드
@@ -91,6 +123,8 @@ v1은 이 repo를 clone해 루트 파일을 그대로 썼다. v2에서는 **같�
 
 > ⚠️ 시스템 파일을 직접 커스터마이즈했다면 덮이기 전에 백업/커밋해 둔다.
 > 생성기는 번들 템플릿으로 덮어쓰며 로컬 수정은 유지하지 않는다.
+
+</details>
 
 ## 필수 도구 & 문제 해결
 
@@ -161,6 +195,31 @@ multiagent-ebiz/            # 마켓플레이스 카탈로그 (루트)
 > **generator가 스킬 안에 있는 이유**: Antigravity(agy)는 플러그인 설치 시 인식하는 컴포넌트(skills/agents/…)만 복사하고 임의 폴더(generator/)는 버린다. 스킬 폴더 안에 두면 스킬과 함께 복사돼 Claude·Codex·Antigravity 모두에서 "구성해줘"가 동작한다.
 
 > **플러그인이 하위 폴더에 있는 이유**: Codex는 로컬 마켓에서 플러그인 source가 repo 루트(`"./"`)인 걸 거부한다([openai/codex#17066](https://github.com/openai/codex/issues/17066)). 그래서 루트는 마켓 카탈로그만 두고 플러그인은 `plugins/multi-agent-starter/`에 둔다 — Claude·Codex 양쪽에서 설치된다.
+
+> **폴더명이 `multi-agent-starter`로 남아 있는 이유**: 플러그인 *이름*은 `multiagent-ebiz`로 바꿨지만 **디렉토리명은 업스트림 그대로** 뒀다. `check-invariants.sh`와 테스트 2종이 이 경로를 하드코딩하고 있어서다. 호스트에 표시되는 식별자는 매니페스트의 `name`이므로 이름 충돌 회피 목적은 이미 달성된다.
+
+## 업스트림 갱신 받기
+
+이 포크는 원작을 `upstream` 리모트로 물고 있다:
+
+```bash
+git remote -v
+# origin    https://github.com/punkyade/multiagent-ebiz   (사내 포크)
+# upstream  https://github.com/netwaif/multi-agent-starter (원작)
+
+git fetch upstream
+git merge upstream/main
+```
+
+사내 추가분(`_shared/team-routing.md`)은 업스트림에 없는 **별도 파일**이고 기존 파일에는
+포인터 한 줄만 넣었으므로, 병합 충돌은 대개 `README.md`·`CHANGELOG.md`·매니페스트 정도에서만 난다.
+병합 후에는 반드시 다음을 돌려 정합성을 확인한다:
+
+```bash
+bash tests/run.sh
+bash _shared/check-invariants.sh
+python3 plugins/multi-agent-starter/skills/configure-multiagent/generator/sync_claude_template.py
+```
 
 ## 품질 — 테스트 & 수용 검증
 

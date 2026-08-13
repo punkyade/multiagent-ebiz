@@ -21,6 +21,8 @@ Claude Code를 오케스트레이터로 두고 Claude·Codex·Gemini를 워커�
 ├── CLAUDE.md              # 운영 규칙 전문 (이 폴더 안에서 claude 실행 시만 적용)
 ├── _shared/
 │   ├── routing.md             # worker 선택 decision tree + 호출 명령
+│   ├── team-routing.md        # 직군(기획·디자인·퍼블·프론트·백엔드·QA) → 슬롯 매핑 (사내층)
+│   ├── capability-profile.md  # 슬롯 → 담당 워커 배정 (가변층)
 │   ├── approval-policy.md     # 승인 게이트 정책 (claude-main 포함)
 │   ├── orchestrator-rules.md  # 세션 시작 시 자체 점검 규칙
 │   └── learnings.md           # 시스템 일반 재사용 교훈 (추적·공개, append-only)

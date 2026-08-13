@@ -18,6 +18,8 @@ Antigravity(Gemini 3.1 Pro High)를 오케스트레이터로 두고 Claude·Code
 ├── AGENTS.md              # Antigravity용 운영 규칙 전문
 ├── _shared/
 │   ├── routing.md             # worker 선택 decision tree + 호출 방식
+│   ├── team-routing.md        # 직군(기획·디자인·퍼블·프론트·백엔드·QA) → 슬롯 매핑 (사내층)
+│   ├── capability-profile.md  # 슬롯 → 담당 워커 배정 (가변층)
 │   ├── approval-policy.md     # 승인 게이트 정책
 │   ├── orchestrator-rules.md  # 세션 시작·재진입 자체 점검 규칙
 │   ├── design-basis.md        # 시스템 결정 근거

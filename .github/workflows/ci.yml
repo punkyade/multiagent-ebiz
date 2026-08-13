@@ -1,0 +1,113 @@
+name: ci
+
+# 오프라인·결정적 검증만 돌린다 — 외부·유료 모델 호출 0건.
+# 3 OS 매트릭스인 이유: 팀이 Windows·macOS 혼재이고, v3.5.0-ebiz.1에서 고친 결함이
+# 전부 "한 OS에서만 터지는" 종류(네이티브 jq의 CRLF, cp949 로케일)였기 때문이다.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: verify (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false        # 한 OS가 깨져도 나머지 결과를 봐야 원인 범위가 좁혀진다
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # tests/run.sh·check-invariants.sh가 `python3`를 호출한다.
+      # Windows Python 설치는 python3.exe를 만들지 않으므로 셸 shim을 깔아준다.
+      - name: Ensure python3 (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          mkdir -p "$HOME/bin"
+          printf '#!/usr/bin/env bash\nexec python "$@"\n' > "$HOME/bin/python3"
+          chmod +x "$HOME/bin/python3"
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+
+      # jq는 GitHub 러너 이미지에 대개 포함돼 있지만, 빠진 이미지에서 조용히
+      # 넘어가지 않도록 확인하고 없으면 설치한다(디스패처 필수 의존).
+      - name: Ensure jq
+        shell: bash
+        run: |
+          if command -v jq >/dev/null 2>&1; then
+            echo "jq 있음: $(jq --version)"
+          elif [ "$RUNNER_OS" = "macOS" ]; then
+            brew install jq
+          elif [ "$RUNNER_OS" = "Linux" ]; then
+            sudo apt-get update && sudo apt-get install -y jq
+          else
+            choco install jq -y
+          fi
+
+      - name: 도구 확인
+        shell: bash
+        run: |
+          for t in bash jq python3 git; do
+            printf '%-8s ' "$t"; command -v "$t" || { echo "(없음)"; exit 1; }
+          done
+          python3 --version
+
+      # 체크아웃이 LF인지 확인 — .gitattributes(* text=auto eol=lf)가 실제로
+      # 먹었는지 보는 회귀 가드. Windows에서 CRLF로 풀리면 여기서 잡힌다.
+      - name: 개행 LF 고정 확인
+        shell: bash
+        run: |
+          bad="$(git ls-files --eol | grep 'w/crlf' || true)"
+          if [ -n "$bad" ]; then
+            echo "CRLF로 체크아웃된 파일이 있다 (.gitattributes 미적용):"
+            echo "$bad"; exit 1
+          fi
+          echo "전부 LF"
+
+      - name: 회귀 테스트 (tests/run.sh)
+        shell: bash
+        run: bash tests/run.sh
+
+      - name: 불변식 자가점검
+        shell: bash
+        run: bash _shared/check-invariants.sh
+
+      - name: 불변식 러너 self-test
+        shell: bash
+        run: bash _shared/check-invariants.sh --self-test
+
+      - name: 배포 표면 점검 (repo-check)
+        shell: bash
+        run: python3 plugins/multi-agent-starter/skills/configure-multiagent/generator/validate.py --repo-check
+
+      - name: 루트↔claude 템플릿 drift 0
+        shell: bash
+        run: python3 plugins/multi-agent-starter/skills/configure-multiagent/generator/sync_claude_template.py
+
+  package:
+    # ZIP 빌드 + 3 flavor 설치 자가검증. OS 비의존이라 ubuntu 1회면 충분하다.
+    name: package (zip self-test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: ZIP 빌드 + 자가검증
+        run: python3 plugins/multi-agent-starter/skills/configure-multiagent/generator/build_zip.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: multiagent-ebiz-zip
+          path: plugins/multi-agent-starter/dist/*.zip
+          if-no-files-found: error

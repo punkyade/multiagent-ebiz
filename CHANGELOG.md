@@ -5,6 +5,31 @@
 (정본: `generator/templates/{claude,codex}/CHANGELOG.md`)를 참조한다.
 형식은 [Keep a Changelog](https://keepachangelog.com/), 버전은 [Semantic Versioning](https://semver.org/lang/ko/)을 따른다.
 
+## [3.5.0-ebiz.2] - 2026-08-13
+
+### Added
+- **GitHub Actions CI** (`.github/workflows/ci.yml`) — ubuntu·macOS·windows 3중 매트릭스로
+  `tests/run.sh` · `check-invariants.sh`(+`--self-test`) · `validate --repo-check` ·
+  sync drift · 개행 LF 고정을 검증. 별도 job에서 ZIP 빌드 자가검증 + 아티팩트 업로드.
+  외부·유료 모델 호출 0건. 3 OS인 이유: ebiz.1에서 고친 결함이 전부 한 OS에서만
+  터지는 종류(네이티브 jq CRLF, cp949 로케일)였다.
+- **README "우리 팀 사용법"** — 3층 라우팅(사내·안정·가변) 진입점, 직군 요청 예시,
+  "워커는 직군이 아니라 능력" 원칙. **"업스트림 갱신 받기"** 절차(fetch·merge + 검증 3종).
+
+### Fixed
+- **`check-invariants.sh --self-test` 전량 오탐 (비-UTF-8 로케일)** — fixture 변조용 인라인
+  Python이 `read_text()`를 인코딩 없이 호출해 한국어 Windows(cp949)에서 죽었다. 치환이
+  no-op이 되어 fixture가 무결로 남고, 러너가 정상 PASS하니 self-test는 이를
+  "깨뜨렸는데 통과함"으로 읽어 11건 전량 실패했다. `encoding="utf-8"` + `newline="\n"` 명시.
+  (macOS·Linux는 로케일이 UTF-8이라 드러나지 않던 결함 — CI 3 OS 매트릭스의 첫 수확.)
+- **`sync_claude_template.py`의 `INFRA_PREFIXES`에 `.github/` 추가** — 없으면 CI 워크플로가
+  생성물 템플릿(`templates/claude/`)으로 복사된다.
+
+### Changed
+- **설치본 README 폴더 트리**(3 flavor)에 `team-routing.md`(사내층)·`capability-profile.md`
+  (가변층) 추가 — ebiz.1에서 파일만 넣고 문서화를 빠뜨렸다.
+- README의 "v1 → v2 마이그레이션"을 `<details>`로 접음(업스트림 clone 사용자 전용 — 사내 무관).
+
 ## [3.5.0-ebiz.1] - 2026-08-12
 
 ebiz 내부 포크의 첫 릴리스. 원작 [netwaif/multi-agent-starter](https://github.com/netwaif/multi-agent-starter) v3.5.0에서 분기.
