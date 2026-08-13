@@ -104,8 +104,14 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 7. Execute the `result.md` Verification Checklist.
 8. Append verification results to `log.md` with `[VERIFICATION]`. When the task is finished, update `status` in `task.md` to `done`.
 9. On completion, append reusable lessons only when they are genuinely reusable:
-   - System-level lessons: `_shared/learnings.md`
-   - Project-specific lessons: `_local/learnings.md` (not loaded unless explicitly requested)
+   - **Write to `_local/learnings.md` first** — it survives generator updates.
+     ⚠️ Anything written directly into `_shared/learnings.md` is **overwritten by the
+     bundled template on the next update** (measured 2026-08-13). `_local/` is preserved.
+   - Project-specific lessons: keep them in `_local/learnings.md` (not tracked by git,
+     not loaded unless explicitly requested).
+   - System-level lessons: leave the note in `_local/` and request it be folded into the
+     distribution repo's `_shared/learnings.md` (ebiz: open a PR — see `docs/ONBOARDING.md`).
+     After merge, the next update delivers it properly.
 
 > When resuming an existing task, start with `_shared/orchestrator-rules.md` section 3 re-entry protocol, not step 1.
 

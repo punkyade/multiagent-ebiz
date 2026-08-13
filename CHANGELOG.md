@@ -5,6 +5,24 @@
 (정본: `generator/templates/{claude,codex}/CHANGELOG.md`)를 참조한다.
 형식은 [Keep a Changelog](https://keepachangelog.com/), 버전은 [Semantic Versioning](https://semver.org/lang/ko/)을 따른다.
 
+## [3.5.0-ebiz.11] - 2026-08-13
+
+팀 운영 방식 확정(**개인별 폴더 1개 · 포크 repo PR 환류 · 동시 작업 없음**)에 맞춘 온보딩.
+
+### Fixed
+- **`_shared/learnings.md`에 쓴 교훈이 update 때 사라지는 것을 지침이 몰랐다** — 생성기
+  update 모드는 `_shared/*`를 번들 템플릿으로 덮는다(실측: 추가한 줄 0건 생존, `_local/`은
+  1건 생존). 그런데 `CLAUDE.md` 9번은 "시스템 일반 교훈 → `_shared/learnings.md`"로 안내하고
+  있어, **지침을 그대로 따르면 다음 갱신에 교훈을 잃는다.** PR 환류 모델의 전제가 깨진다.
+  → 9번을 "**먼저 `_local/`에 쓴다** → 일반 교훈이면 배포 저장소에 반영 요청 → 머지 후
+  update로 정식 수령"으로 교정(3 flavor. AGENTS.md 동등 항목 포함).
+
+### Added
+- **`docs/ONBOARDING.md`** — 팀원 온보딩 1회 절차. 도구 설치표, **agy 파일 읽기 권한**
+  (`~/.gemini/antigravity-cli/settings.json` — `~/.gemini/settings.json`이 아님), 개인 폴더 생성,
+  doctor 통과, 첫 작업, 승인 게이트, 교훈 PR 환류, 증상별 확인표.
+  README에서 팀원용 진입점으로 연결.
+
 ## [3.5.0-ebiz.10] - 2026-08-13
 
 ### Fixed

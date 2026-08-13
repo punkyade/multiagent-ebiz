@@ -101,7 +101,10 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 6. worker 실행 → 원문을 **`tasks/<task>/workers/<role>/result.md`** 에 저장 (같은 워커별 폴더)
 7. `result.md`의 Verification Checklist 실행
 8. 검증 결과를 `log.md`에 append (`[VERIFICATION]` 태그). 작업이 끝나면 `task.md`의 `status`를 `done`으로 갱신
-9. 완료 후 교훈 추가 (분류): **시스템 운영 자체**에 대한 일반 교훈 → `_shared/learnings.md`(추적·공개). **특정 외부 프로젝트 한정**(mat·hwpx 등) → `_local/learnings.md`(git 추적 안 함, 없으면 생성). `_local/learnings.md`는 명시 요청 없이는 로드하지 않는다.
+9. 완료 후 교훈 추가. **먼저 `_local/learnings.md`에 쓴다** — 분류는 그다음이다.
+   - ⚠️ **`_shared/learnings.md`에 직접 쓴 내용은 생성기 update 때 번들 템플릿으로 덮여 사라진다**(실측 2026-08-13). `_local/`은 보존 대상이라 살아남는다. 그래서 기록은 항상 `_local/`이 먼저다.
+   - **특정 프로젝트 한정** 교훈이면 `_local/learnings.md`에 두고 끝낸다(git 추적 안 함, 없으면 생성. 명시 요청 없이는 로드하지 않는다).
+   - **시스템 운영 자체**의 일반 교훈이면 `_local/`에 둔 채로, 배포 저장소의 `_shared/learnings.md`에 반영을 요청한다(ebiz: 포크 repo에 PR — `docs/ONBOARDING.md` 참조). 머지 후 다음 update를 받으면 `_shared/learnings.md`에 정식으로 들어온다.
 
 > **기존 작업 재개 시**(새 세션 포함)는 1번부터가 아니라 `_shared/orchestrator-rules.md` §3 **재진입 프로토콜**을 먼저 따른다 (재정박 → 분기 → 에러 후 진행).
 
