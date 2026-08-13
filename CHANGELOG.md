@@ -5,6 +5,31 @@
 (정본: `generator/templates/{claude,codex}/CHANGELOG.md`)를 참조한다.
 형식은 [Keep a Changelog](https://keepachangelog.com/), 버전은 [Semantic Versioning](https://semver.org/lang/ko/)을 따른다.
 
+## [3.5.0-ebiz.13] - 2026-08-13
+
+### Fixed
+- **지침파일(`CLAUDE.md`/`AGENTS.md`)을 통째로 덮어 프로젝트 지침이 사라지던 문제** —
+  호스트가 자동 로드하는 지침파일은 **하나뿐**이라 프로젝트 규칙과 하네스 규칙이 같은 파일에
+  공존해야 한다. 기존에는 백업(`.multiagent-bak`)만 남기고 덮었고, 그 결과 프로젝트의
+  안전 규칙(DDL 금지·실결제 금지 등)이 라이브 지침에서 사라졌다(ssaksseuri 실측).
+  → **마커 기반 병합**: 하네스 규칙은 `<!-- multiagent:start -->` ~ `<!-- multiagent:end -->`
+  사이에만 두고 **바깥은 손대지 않는다.**
+  - 파일 없음 → 마커로 감싼 하네스 규칙만
+  - 마커 있음 → **마커 사이만 교체**(프로젝트 지침·loadout store 블록 보존)
+  - 마커 없음 → 기존 내용을 그대로 두고 **뒤에 추가**
+  - 기존 내용이 있으면 항상 `.multiagent-bak` 백업(종전 동작 유지)
+  - store 블록 재부착 로직은 불필요해져 제거(기존 내용이 통째로 보존되므로)
+
+### Added
+- `tests/test_update_preserve.py::instruction_merge_checks` (8) — 1회차(마커 없음 → 추가)와
+  2회차(마커 있음 → 사이만 교체) 모두에서 프로젝트 지침 보존·마커 중복 없음·하네스 규칙
+  유지를 단언한다.
+
+### 실적용
+- `Pipleline`(Coupang Pipeline) 복구 후 재설치 검증: 프로젝트 파일 6종
+  (`.gitignore`·`README.md`·`LICENSE`·`NOTICE`·`CHANGELOG.md`·`KNOWN_ISSUES.md`) 무변경,
+  `CLAUDE.md`는 프로젝트 지침 위 + 하네스 블록 아래로 병합, validate 12개 전부 PASS.
+
 ## [3.5.0-ebiz.12] - 2026-08-13
 
 **기존 프로젝트 폴더에 얹는 것이 정상 경로**임이 확인돼(팀원 각자 자기 프로젝트에서 사용),

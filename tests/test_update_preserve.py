@@ -73,8 +73,50 @@ def main() -> None:
             fails += not ok
 
     fails += existing_project_checks()
+    fails += instruction_merge_checks()
     print(f"test_update_preserve: {'all pass' if not fails else f'{fails} fail'}")
     sys.exit(1 if fails else 0)
+
+
+MARK_START, MARK_END = "<!-- multiagent:start -->", "<!-- multiagent:end -->"
+
+
+def instruction_merge_checks() -> int:
+    """CLAUDE.md 병합 — 프로젝트 지침을 보존하고 마커 사이만 갱신해야 한다.
+
+    호스트가 자동 로드하는 지침파일은 하나뿐이라 프로젝트 규칙과 하네스 규칙이 공존해야
+    한다. 통째로 덮으면 프로젝트 지침이 사라진다(실측 사고 2건).
+    """
+    fails = 0
+    PROJ = "# 내 프로젝트 지침\n\n- DDL 직접 실행 금지\n- 실결제 호출 금지\n"
+    with tempfile.TemporaryDirectory() as d:
+        tgt = Path(d) / "proj"
+        tgt.mkdir()
+        (tgt / "CLAUDE.md").write_text(PROJ, encoding="utf-8", newline="\n")
+
+        init(tgt)                                   # 1회차: 마커 없음 → 뒤에 추가
+        t1 = (tgt / "CLAUDE.md").read_text(encoding="utf-8")
+        checks = [
+            ("1회차: 프로젝트 지침 보존", "DDL 직접 실행 금지" in t1),
+            ("1회차: 하네스 블록 추가", MARK_START in t1 and MARK_END in t1),
+            ("1회차: 하네스 규칙 실재", "재진입" in t1 and "tasks-only" in t1),
+            ("1회차: 원문 백업", (tgt / "CLAUDE.md.multiagent-bak").is_file()),
+        ]
+
+        # 사용자가 프로젝트 지침을 더 추가한 뒤 재설치
+        (tgt / "CLAUDE.md").write_text(t1 + "\n- 추가 규칙\n", encoding="utf-8", newline="\n")
+        init(tgt)                                   # 2회차: 마커 있음 → 사이만 교체
+        t2 = (tgt / "CLAUDE.md").read_text(encoding="utf-8")
+        checks += [
+            ("2회차: 프로젝트 지침 보존", "DDL 직접 실행 금지" in t2),
+            ("2회차: 추가 규칙 보존", "추가 규칙" in t2),
+            ("2회차: 마커 중복 없음", t2.count(MARK_START) == 1 and t2.count(MARK_END) == 1),
+            ("2회차: 하네스 규칙 유지", "재진입" in t2),
+        ]
+        for desc, ok in checks:
+            print(f"  {'PASS' if ok else 'FAIL'} {desc}")
+            fails += not ok
+    return fails
 
 
 def existing_project_checks() -> int:

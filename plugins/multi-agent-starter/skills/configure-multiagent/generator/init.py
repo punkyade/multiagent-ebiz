@@ -49,8 +49,13 @@ MCP_FILE = ".mcp.json"
 
 # flavor별 지침파일(에이전트가 자동 로드) — validate.py FLAVOR['instruction']과 일치해야.
 INSTRUCTION_FILE = {"claude": "CLAUDE.md", "codex": "AGENTS.md", "antigravity": "AGENTS.md"}
-# loadout store(github.com/netwaif/loadout)가 지침파일에 심는 조각 블록 — update 시 보존 대상.
-STORE_BLOCK_RE = re.compile(r"<!-- store:([\w-]+):start -->.*?<!-- store:\1:end -->", re.S)
+# 지침파일 병합 마커 — 이 사이만 하네스 규칙이고, 바깥은 전부 프로젝트 소유다.
+# 기존 프로젝트 폴더에 얹는 것이 정상 경로인데 CLAUDE.md는 호스트가 자동 로드하는 파일이
+# 하나뿐이라, 프로젝트 지침과 하네스 규칙이 같은 파일에 공존해야 한다. 통째로 덮으면
+# 프로젝트 지침이 사라진다(실측 사고 2건 — ssaksseuri·Pipleline).
+MARK_START = "<!-- multiagent:start -->"
+MARK_END = "<!-- multiagent:end -->"
+MARK_RE = re.compile(re.escape(MARK_START) + r".*?" + re.escape(MARK_END), re.S)
 # knot·요금가드 설치는 v3.0.0부터 loadout 카탈로그 담당(github.com/netwaif/loadout).
 # knot 자산(knot_block.md·knot-vault/)과 validate C10(사후 검증)은 존치. knot 능동 스킬은 v3.1.0부터 netwaif/knot 자체 플러그인이 배포.
 # 요금가드는 v3.2.0부터 자산(구 guard/)·사후검증(구 C12)까지 전부 loadout guard 품목 소관 — 이 저장소에 가드 파일 없음.
@@ -96,7 +101,7 @@ def is_user_data(rel: Path) -> bool:
     return len(rel.parts) >= 1 and rel.parts[0] in PRESERVE_DIRS and rel.name != ".gitkeep"
 
 
-def copy_template(template_dir: Path, target: Path,
+def copy_template(template_dir: Path, target: Path, flavor: str,
                   dry: bool) -> tuple[list[Path], list[Path]]:
     """템플릿 파일을 target에 복사 → (written, skipped).
 
@@ -114,6 +119,8 @@ def copy_template(template_dir: Path, target: Path,
             continue
         dest = target / rel
         rel_posix = rel.as_posix()
+        if rel_posix == INSTRUCTION_FILE[flavor]:
+            continue          # merge_instruction 이 마커 기반으로 따로 병합한다
         if rel_posix == MCP_FILE:
             merge_mcp(src, dest, dry)
             written.append(rel)
@@ -159,22 +166,36 @@ def merge_mcp(src: Path, dest: Path, dry: bool) -> None:
                         encoding="utf-8", newline="\n")
 
 
-def preserve_instruction(target: Path, flavor: str, old_text: str | None, dry: bool) -> int:
-    """update 모드에서 기존 지침파일 보호: 덮어쓰기 전 원문을 .multiagent-bak으로 백업하고,
-    loadout store 블록을 새 지침파일 끝에 재부착한다. 반환값 = 재부착한 블록 수."""
+def merge_instruction(template_dir: Path, target: Path, flavor: str,
+                      old_text: str | None, dry: bool) -> str:
+    """지침파일 병합 — 하네스 규칙은 마커 사이에만 두고 **바깥은 손대지 않는다**.
+
+    · 파일 없음      → 마커로 감싼 하네스 규칙만 쓴다
+    · 마커 있음      → 마커 사이만 새 규칙으로 교체(프로젝트 지침·loadout store 블록 보존)
+    · 마커 없음      → 기존 내용을 그대로 두고 **뒤에 붙인다**(기존 프로젝트에 처음 얹는 경우)
+
+    반환값은 사람이 읽을 모드 문자열. 기존 내용이 있으면 항상 `.multiagent-bak`으로 백업한다.
+    """
+    name = INSTRUCTION_FILE[flavor]
+    harness = (template_dir / name).read_text(encoding="utf-8").strip("\n")
+    block = f"{MARK_START}\n{harness}\n{MARK_END}\n"
+
     if old_text is None:
-        return 0
-    instr = target / INSTRUCTION_FILE[flavor]
+        mode = "신규"
+        merged = block
+    elif MARK_RE.search(old_text):
+        mode = "하네스 블록만 갱신 (마커 사이)"
+        merged = MARK_RE.sub(lambda _: block.rstrip("\n"), old_text, count=1)
+    else:
+        mode = "기존 지침 보존 + 하네스 블록 추가"
+        merged = old_text.rstrip("\n") + "\n\n" + block
+
     if not dry:
-        (target / (INSTRUCTION_FILE[flavor] + ".multiagent-bak")).write_text(
-            old_text, encoding="utf-8")
-    new_text = instr.read_text(encoding="utf-8") if instr.is_file() else ""
-    blocks = [m.group(0) for m in STORE_BLOCK_RE.finditer(old_text)
-              if m.group(0) not in new_text]
-    if blocks and not dry:
-        instr.write_text(new_text.rstrip("\n") + "\n\n" + "\n\n".join(blocks) + "\n",
-                         encoding="utf-8")
-    return len(blocks)
+        if old_text is not None:
+            (target / (name + ".multiagent-bak")).write_text(
+                old_text, encoding="utf-8", newline="\n")
+        (target / name).write_text(merged, encoding="utf-8", newline="\n")
+    return mode
 
 
 def main() -> None:
@@ -211,17 +232,17 @@ def main() -> None:
     instr_path = target / INSTRUCTION_FILE[flavor]
     old_instr = instr_path.read_text(encoding="utf-8") if instr_path.is_file() else None
 
-    written, skipped = copy_template(template_dir, target, dry=args.dry_run)
+    written, skipped = copy_template(template_dir, target, flavor, dry=args.dry_run)
     prefix = "(dry) " if args.dry_run else ""
     print(f"\n  {prefix}{len(written)}개 파일 {'복사 예정' if args.dry_run else '복사 완료'}.")
     if skipped:
         print(f"  {prefix}기존 파일 {len(skipped)}개는 건드리지 않음(프로젝트 소유): "
               f"{', '.join(p.as_posix() for p in skipped)}")
 
-    kept = preserve_instruction(target, flavor, old_instr, dry=args.dry_run)
+    mode = merge_instruction(template_dir, target, flavor, old_instr, dry=args.dry_run)
+    print(f"  {prefix}{INSTRUCTION_FILE[flavor]}: {mode}")
     if old_instr is not None:
-        print(f"  {prefix}기존 {INSTRUCTION_FILE[flavor]} 백업: "
-              f"{INSTRUCTION_FILE[flavor]}.multiagent-bak (store 블록 {kept}개 재부착)")
+        print(f"  {prefix}기존 원문 백업: {INSTRUCTION_FILE[flavor]}.multiagent-bak")
 
     validate = SCRIPT_DIR / "validate.py"
     if not args.no_validate and not args.dry_run and validate.exists():
