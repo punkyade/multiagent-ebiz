@@ -3,6 +3,10 @@
 <!-- HARD LIMIT: 1200자 한글 / 240단어 영문 (wc -m / wc -w). 파일 내용 inline 금지. 경로만 전달. -->
 <!-- 프리셋 design-diff 1/3 — 캡처 단계. <...> 자리표시자를 채운 뒤 호출할 것. -->
 
+## Objective
+
+구현 화면을 캡처해 `tasks/<task-name>/artifacts/` 에 저장하고, 각 파일의 절대경로를 반환한다.
+
 ## Worker 행동 규약 (고정 — 모든 brief에 그대로 유지, 삭제 금지)
 
 - 요청 범위만 최소로. 사변적 추상화·기능 추가 금지
@@ -15,10 +19,6 @@
 target_repo: <구현 코드 절대경로 또는 N/A>
 write_scope: tasks-only
 ```
-
-## Objective
-
-구현 화면을 캡처해 `tasks/<task-name>/artifacts/` 에 저장하고, 각 파일의 절대경로를 반환한다.
 
 ## Input
 

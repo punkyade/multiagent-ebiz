@@ -5,6 +5,35 @@
 (정본: `generator/templates/{claude,codex}/CHANGELOG.md`)를 참조한다.
 형식은 [Keep a Changelog](https://keepachangelog.com/), 버전은 [Semantic Versioning](https://semver.org/lang/ko/)을 따른다.
 
+## [3.5.0-ebiz.9] - 2026-08-13
+
+**첫 실전 작업**(`mat-purpose-fix`)을 하네스로 수행하며 나온 결과. 작업 자체(KI-1 해소)보다
+**과정에서 드러난 하네스 결함 3건**이 중요하다.
+
+### Fixed
+- **디스패처가 유료 호출 결과를 통째로 유실** — 최종 envelope를 `jq --argjson e "$env"` 로
+  **argv에** 실어 넘기다 `Argument list too long`(exit 126). codex-critic이 1분 27초 정상
+  수행한 결과가 사라졌다. 워커 출력이 argv 한계(Windows ~32KB)를 넘으면 **항상** 발생한다.
+  → `add_flag()` 헬퍼로 herestring(stdin) 전달. 회귀 가드 `test_large_output.sh`(7)로
+  198,893자·8000줄 보존 실측 고정. **단위 테스트로는 나올 수 없고 실제 워커 호출이 필요했다.**
+- **`check-limits` 측정이 실제 전달량과 어긋남** — 주석을 한도에서 제외하면서 디스패처는
+  `@brief_content = cat` 으로 **주석 포함 전문**을 워커에 보내고 있었다("주석에 임의 내용을
+  숨겨 한도를 무력화할 수 있다" — codex-critic).
+  → 디스패처가 brief의 HTML 주석을 **떼고 전달**한다. 측정과 실제가 일치하고 토큰도 실제로
+  준다. payload(동봉 자료)는 원본이라 미처리. 회귀 가드 `test_strip_comments.sh`(8).
+
+### Changed
+- **KI-1 해소** — `## Objective` 섹션을 `## Worker 행동 규약` 블록 **위로 이동**.
+  mat이 `#` 시작 줄을 전부 건너뛰는 성질을 이용해 **줄 추가 없이**(0자) 해결했고, 목적의
+  정본도 한 곳뿐이라 동기화 대상이 생기지 않는다. 적용 **16벌**(루트 4 + 3 flavor × 4).
+  자리표시자를 `<한 문장 — …>`으로 바꿔 **안 채운 brief가 mat에서 즉시 드러나게** 했다.
+- **`worker-brief.md` 스캐폴드 슬림화** — 가변부 1161 → **639자**(여유 39 → 561자).
+  안내문을 HTML 주석으로 이동(위 디스패처 변경으로 실제 절감이 된다), `Prior Results`는
+  주석 스텁으로 강등. 프리셋 3벌은 이동만 적용(외과수술식).
+- `KNOWN_ISSUES.md` KI-1 ✅ 해소 표기 + **낡은 근본 원인 표 교정** — 기록된 증상(` ```yaml `)이
+  규약 블록 삽입 이후 바뀌었는데 문서가 따라오지 않았다. 실측 시점 값은 규약 블록 첫 불릿이었다.
+- `_shared/learnings.md` [2026-08-13] 기록.
+
 ## [3.5.0-ebiz.8] - 2026-08-13
 
 시안 대조 프리셋. 검증 과정에서 **이미지 검수 정본 경로가 조용히 죽어 있던 것**을 발견·수정.

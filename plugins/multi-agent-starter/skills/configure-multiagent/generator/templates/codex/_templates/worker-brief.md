@@ -1,7 +1,12 @@
 # Brief — [worker-role] / [작업명]
 
 <!-- HARD LIMIT: 1200자 한글 / 240단어 영문 (wc -m / wc -w). 파일 내용 inline 금지. 경로만 전달. -->
-<!-- worker가 추론할 수 있는 것은 쓰지 말 것. -->
+<!-- worker가 추론할 수 있는 것은 쓰지 말 것. 아래 Objective 첫 줄이 mat의 목적 표시가 된다. -->
+<!-- 이 줄 위의 주석은 반드시 한 줄짜리로 유지할 것 (mat은 `<!--`로 시작하는 줄만 건너뛴다). -->
+
+## Objective
+
+<한 문장 — 이 worker가 완료해야 하는 것>
 
 ## Worker 행동 규약 (고정 — 모든 brief에 그대로 유지, 삭제 금지)
 
@@ -9,22 +14,24 @@
 - 외과수술식 수정: 기존 스타일 유지, 무관 코드 비접촉
 - 사용자 대화 채널 없음: 가정은 명시하고, 불확실·불일치는 result의 Issues/Caveats에 표면화
 
-## Execution Context (codex-main / claude-critic 필수)
+## Execution Context (codex-main / codex-critic 필수)
 
 ```yaml
-target_repo: /absolute/path/to/repo    # 작업 대상 절대 경로 (없으면 N/A)
-write_scope: none                      # none | tasks-only | "src/**, tests/**" 등 패턴
-                                      # 외부 repo 쓰기는 task.md workers_approved에 별도 승인 필요
+target_repo: /absolute/path/to/repo   # 작업 대상 절대 경로 (없으면 N/A)
+write_scope: none                     # none | tasks-only | "src/**, tests/**" 등 패턴
 ```
 
-## Objective
-
-한 문장. 이 worker가 완료해야 하는 것.
+<!-- 외부 repo 쓰기는 task.md workers_approved 에 write_scope 까지 별도 승인 필요. -->
 
 ## Input
 
+<!-- 파일 경로로만 참조. 내용을 여기에 붙여넣지 말 것.
+     gemini 이미지/PDF 검수: 분석 대상 절대경로를 본문에 직접 적는다(agy가 그 경로를 연다).
+       예) image: /absolute/path/to/thumb.png  — --add-dir 쓰지 말 것.
+     gemini 소스·다중파일 검토: 스니펫 대신 sources/gemini-packet.md 에 담아 디스패처
+     3번째 인자로 동봉: call_worker.sh gemini <brief> <packet> (routing.md gemini 절). -->
+
 ```
-# 파일 경로로만 참조. 내용을 여기에 붙여넣지 말 것.
 task:    tasks/<task-name>/task.md
 context: tasks/<task-name>/context.md
 sources: tasks/<task-name>/sources/<file>
@@ -37,20 +44,15 @@ sources: tasks/<task-name>/sources/<file>
 
 ## Output Format
 
-결과물 형식을 정확히 명시:
 - 파일 위치: `tasks/<task-name>/workers/<role>/result.md`
 - 형식: Markdown | JSON | Code | Diff
-- 구조: 섹션명 또는 코드 블록 형식
+- 구조: (예: 섹션명 또는 코드 블록 형식)
 
 ## Do NOT
 
 - 하지 말아야 할 것 1
 - 하지 말아야 할 것 2
 
-## Prior Results (해당 시)
-
-```
-# 선행 worker 또는 Orchestrator 결과가 있으면 경로만 명시
-codex-main result: tasks/<task-name>/workers/codex-main/result.md
-orchestrator artifact: tasks/<task-name>/artifacts/<file>
-```
+<!-- 선행 worker 결과가 있으면 아래를 섹션으로 되살린다 (경로만 명시).
+## Prior Results
+claude-main result: tasks/<task-name>/workers/claude-main/result.md -->

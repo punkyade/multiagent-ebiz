@@ -47,6 +47,16 @@ case "$BRIEF" in *..*) die "brief 경로에 '..' 금지" 6;; esac
 [ -f "$BRIEF" ] || die "brief 파일 없음: $BRIEF" 6
 BRIEF="$(cd "$(dirname -- "$BRIEF")" && pwd)/$(basename -- "$BRIEF")"
 
+# HTML 주석 제거 — brief의 주석은 "템플릿을 어떻게 채우는가" 안내이지 워커에게 줄 지시가
+# 아니다. 떼고 보내면 (1) 워커 입력 토큰이 실제로 줄고, (2) check-limits가 주석을 빼고
+# 재는 것이 **실제 전달량과 일치**한다. 그 전에는 주석으로 옮기는 것이 "측정상 절감"에
+# 불과하다는 지적이 성립했다(codex-critic, 2026-08-13 — 실제로 cat 전문이 전달됐다).
+# payload(동봉 자료)는 원본 자료이므로 건드리지 않는다 — 병합 전에 brief만 처리한다.
+BRIEF_RAW="$BRIEF"
+STRIPPED="$(mktmp)"
+jq -Rs -r 'gsub("<!--.*?-->";"";"m") | gsub("\n{3,}";"\n\n")' <"$BRIEF_RAW" >"$STRIPPED"
+BRIEF="$STRIPPED"
+
 # payload(선택) — brief 한도 밖 동봉 자료. brief 뒤에 결합한 임시 brief로 치환.
 if [ -n "$PAYLOAD" ]; then
   case "$PAYLOAD" in *..*) die "payload 경로에 '..' 금지" 6;; esac
@@ -73,6 +83,15 @@ while IFS= read -r _fe; do
 done < <(jq -r '.fallbacks[]?.api.required_env[]? // empty' <<<"$rec")
 
 redact() { sed -E 's/[A-Za-z0-9_-]{32,}/[REDACTED]/g'; }
+
+# envelope에 fallback_used를 붙여 stdout으로. **stdin(herestring)으로 넘기는 게 핵심** —
+# `jq --argjson e "$env"` 처럼 argv로 주면 워커 출력이 큰 경우 OS 인자 길이 한계에 걸려
+# `jq: Argument list too long` 으로 죽고, **이미 성공한 유료 호출 결과가 통째로 유실된다**
+# (2026-08-13 codex-critic 실호출에서 1분 27초 작업분을 잃고 발견).
+add_flag() {  # add_flag <envelope-json> <true|false>
+  [ -n "$1" ] || { echo "call_worker: envelope 비어있음(백엔드가 envelope를 못 남김)" >&2; return 1; }
+  jq --argjson f "$2" '. + {fallback_used:$f}' <<<"$1"
+}
 
 # 단일 backend 실행 → envelope(JSON)을 stdout, exit code 반환
 run_backend() {
@@ -187,7 +206,7 @@ run_backend() {
 # primary → 실패 시 fallbacks 순차 (set -e 우회: || prc=$?)
 prc=0; env_primary="$(run_backend "$rec")" || prc=$?
 if [ "$prc" -eq 0 ]; then
-  jq -n --argjson e "$env_primary" '$e + {fallback_used:false}'
+  add_flag "$env_primary" false
   exit 0
 fi
 nf="$(jq '.fallbacks | length' <<<"$rec")"
@@ -196,7 +215,7 @@ while [ "$i" -lt "${nf:-0}" ]; do
   fb="$(jq -c --argjson i "$i" '.fallbacks[$i]' <<<"$rec")"
   frc=0; env_fb="$(run_backend "$fb")" || frc=$?
   if [ "$frc" -eq 0 ]; then
-    jq -n --argjson e "$env_fb" '$e + {fallback_used:true}'
+    add_flag "$env_fb" true
     exit 0
   fi
   i=$((i+1))
@@ -204,8 +223,8 @@ done
 # 폴백이 실제로 실행돼 envelope를 남겼을 때만 true. fallbacks:[] 인 워커(예: gemini)의
 # primary 실패를 "폴백 사용함"으로 잘못 보고하지 않도록 한다.
 if [ -n "$env_fb" ]; then
-  jq -n --argjson e "$env_fb"      '$e + {fallback_used:true}'
+  add_flag "$env_fb" true
 else
-  jq -n --argjson e "$env_primary" '$e + {fallback_used:false}'
+  add_flag "$env_primary" false
 fi
 exit 1

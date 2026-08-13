@@ -8,40 +8,44 @@
 
 ---
 
-## KI-1 (audit C3) — 표준 `worker-brief.md`를 쓰면 mat이 워커 목적을 ` ```yaml `로 표시
+## KI-1 (audit C3) — 표준 `worker-brief.md`를 쓰면 mat이 워커 목적을 엉뚱한 줄로 표시
 
-- **상태**: 열림 / **보류** (경미·표시 한정. 크리티컬 C1·C2는 PR #3·#5에서 해소됨)
-- **심각도**: 낮음 — 시스템·워커 호출·데이터에 영향 없음. [mat](https://github.com/netwaif/mat) **모니터 화면 표시만** 오염. mat 미사용 시 영향 0.
-- **재현**: 항상. `_templates/worker-brief.md` 표준 구조를 그대로 채운 brief를 쓰는 모든 작업. (이 audit의 codex-main brief에서도 실증됨.)
+- **상태**: ✅ **해소** (3.5.0-ebiz.9, 수정 후보 (a) 채택)
+- **심각도**: 낮음 — 시스템·워커 호출·데이터에 영향 없음. mat **모니터 화면 표시만** 오염했다.
 
-### 증상
+### 증상 (해소 전)
 
-mat의 핵심 화면 요소인 "워커 한 줄 목적"이 실제 Objective가 아니라 문자열 ` ```yaml `로 표시된다.
+mat의 핵심 화면 요소인 "워커 한 줄 목적"이 실제 Objective가 아닌 줄로 표시됐다.
 
 ### 근본 원인
 
 | repo | 파일·라인 | 내용 |
 |------|-----------|------|
-| starter | `_templates/worker-brief.md` | 1행 `# Brief`(heading), 2–4행 `<!-- -->`(comment), 6행 `## Execution Context`(heading), **8행 ` ```yaml ` fence** |
 | mat | `internal/parser/task.go:280` | brief 존재 시 무조건 `w.Purpose = firstMeaningfulLine(brief 내용)` |
 | mat | `internal/parser/task.go:499–515` | `firstMeaningfulLine`은 **빈 줄·`#`시작·`<!--`시작만 skip**, 그 다음 줄을 그대로 반환 |
 | mat | `internal/parser/task.go:71–76` | `w.Purpose == ""`일 때만 `planned_workers.purpose`로 fallback |
 
-표준 brief에서 heading·comment를 건너뛴 첫 "의미 있는" 줄은 `## Execution Context` 다음의 ` ```yaml ` fence다. 이 값이 비어있지 않으므로 `planned_workers.purpose` fallback도 발동하지 않는다.
+> **원 기록 정정 (2026-08-13 실측)**: 이 항목은 표시되는 값이 ` ```yaml ` fence라고 적고 있었으나, 그 뒤 `## Worker 행동 규약` 고정 블록이 템플릿에 삽입되면서 실제 증상이 바뀌었고 문서가 따라오지 않았다. 실측 시점의 값은 규약 블록의 첫 불릿(`- 요청 범위만 최소로…`)이었고, 대상 4벌 전부 동일했다. **증상 기록에 측정 일자를 남기지 않으면 언제 거짓이 됐는지 알 수 없다**는 사례다.
 
-### 수정 후보 (택1, 미결정)
+### 해소 방법 (후보 (a))
 
-- **(a) starter 템플릿** — `_templates/worker-brief.md`를 첫 의미 있는 줄이 실제 한 줄 목적이 되도록 재구성 (예: Execution Context yaml 위에 평문 목적 1줄, 또는 Objective를 평문으로 선두 배치).
-  - 장점: starter 단독 수정, mat 재빌드 불필요, 자기완결.
-  - 단점: 전 worker 공용 템플릿 변경. 1200자 한도·codex Execution Context yaml 요구와 양립해야.
-- **(b) mat 파서** — `firstMeaningfulLine`이 코드펜스(` ``` `/` ```yaml `)도 skip하거나, 명시적 purpose 필드를 우선.
-  - 장점: 임의 brief에 견고.
-  - 단점: mat 재빌드·재배포 필요(`go build -o mat .` + 재실행). mat은 선택적 외부 도구라 비-mat 환경엔 무의미.
+`## Objective` 섹션을 `## Worker 행동 규약` 블록 **위로 이동**했다. mat이 `#`으로 시작하는 줄을 전부 건너뛰므로 `## Objective` 헤딩도 skip되고 **그 다음 줄인 목적 본문**이 선택된다.
+
+- **추가 글자 0자** — 순수 이동이라 1200자 한도에 영향이 없다. 목적의 정본도 한 곳뿐이라 동기화 대상이 생기지 않는다.
+- 자리표시자를 `<한 문장 — 이 worker가 완료해야 하는 것>`으로 바꿔, **안 채운 brief는 mat에서 즉시 드러나게** 했다.
+- 적용 범위 **16벌** — 루트 4 + `generator/templates/{claude,codex,antigravity}` 각 4.
+- 규약 블록은 문구·순서 그대로이고 뒤따르는 `## Execution Context` 순서도 유지되어 INV12·INV12c 범위가 성립한다.
+
+함께 처리: `worker-brief.md` 스캐폴드 슬림화(가변부 1161→639자). 안내문을 HTML 주석으로 내렸고, **디스패처가 brief의 HTML 주석을 떼고 워커에 전달**하도록 바꿔 측정과 실제 전달량을 일치시켰다.
+
+### 알려진 잔여 취약점 (별건)
+
+INV12c는 `sed -n '/^## Worker 행동 규약/,/^## Execution/p'` 로 종료 앵커가 `## Execution`에 결합돼 있다. 규약 블록 뒤 섹션명을 바꾸면 범위가 EOF까지 늘어나 오탐/미탐이 난다. 종료 앵커를 `/^## /`로 일반화할 것을 권한다.
 
 ### 참고
 
-- 공개 흔적: `_shared/learnings.md` [2026-05-19] (곁다리 언급), PR #5 본문.
-- 크리티컬 해소 이력: PR #3 (C1 gemini 기본 모델), PR #5 (C2 gemini 단일 브리지).
+- 공개 흔적: `_shared/learnings.md` [2026-05-19], PR #5 본문.
+- 해소 경위: CHANGELOG `3.5.0-ebiz.9`. 작업 폴더(`tasks/mat-purpose-fix/`)는 `.gitignore` 대상이라 저장소에 포함되지 않는다 — claude-main 설계 → codex-critic 검증 → Orchestrator 적용 흐름.
 
 ---
 
