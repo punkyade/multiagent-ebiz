@@ -5,6 +5,27 @@
 (정본: `generator/templates/{claude,codex}/CHANGELOG.md`)를 참조한다.
 형식은 [Keep a Changelog](https://keepachangelog.com/), 버전은 [Semantic Versioning](https://semver.org/lang/ko/)을 따른다.
 
+## [3.5.0-ebiz.14] - 2026-08-13
+
+### Added
+- **mat 모니터 도입 절차** (`docs/ONBOARDING.md`) — **Windows 가용성 확인 완료.**
+  사전 빌드 바이너리는 없지만 `go install github.com/netwaif/mat@latest`로 빌드된다
+  (go 1.25.5 windows/amd64 실측). macOS는 `brew install netwaif/tap/mat`.
+  실행은 `MAT_ROOT=<폴더> mat <작업명>` — 작업명을 인자로 받는다.
+- **KI-1 해소의 end-to-end 실측** — mat v0.2.3을 실제로 띄워 before/after 확인:
+  ```
+  수정 전  claude-main  - 요청 범위만 최소로. 사변적 추상화·기능 추가 금지
+  수정 후  claude-main  설계 문서 초안을 작성한다
+          gemini       시안 이미지를 대조한다
+  ```
+  `KNOWN_ISSUES.md` KI-1에 기록.
+
+### Changed
+- **`docs/ONBOARDING.md`를 실제 사용 방식에 맞춤** — "개인당 폴더 1개 + `target_repo` 지정"으로
+  적혀 있었으나 실제로는 **각자 담당 프로젝트 폴더에 직접 얹는다.** 팀원 파일럿에게 잘못된
+  경로를 안내할 뻔했다. 설치 후 출력 예시(건드리지 않은 파일 목록·마커 병합 결과)와
+  "마커 바깥을 고치라"는 안내를 추가.
+
 ## [3.5.0-ebiz.13] - 2026-08-13
 
 ### Fixed

@@ -42,6 +42,19 @@ mat의 핵심 화면 요소인 "워커 한 줄 목적"이 실제 Objective가 �
 
 INV12c는 `sed -n '/^## Worker 행동 규약/,/^## Execution/p'` 로 종료 앵커가 `## Execution`에 결합돼 있다. 규약 블록 뒤 섹션명을 바꾸면 범위가 EOF까지 늘어나 오탐/미탐이 난다. 종료 앵커를 `/^## /`로 일반화할 것을 권한다.
 
+### mat 실측 확인 (2026-08-13)
+
+mat v0.2.3을 실제로 띄워 before/after를 확인했다.
+
+```
+수정 전 (옛 순서 brief)   claude-main  - 요청 범위만 최소로. 사변적 추상화·기능 추가 금지
+수정 후 (새 템플릿)       claude-main  설계 문서 초안을 작성한다
+                        gemini       시안 이미지를 대조한다
+```
+
+**Windows 가용성도 확인됐다** — 사전 빌드 바이너리는 없지만 `go install github.com/netwaif/mat@latest`로
+빌드된다(go 1.25.5 windows/amd64 실측). 실행은 `MAT_ROOT=<폴더> mat <작업명>`.
+
 ### 참고
 
 - 공개 흔적: `_shared/learnings.md` [2026-05-19], PR #5 본문.

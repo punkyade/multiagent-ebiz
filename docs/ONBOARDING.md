@@ -6,12 +6,19 @@
 
 | 항목 | 방식 |
 |------|------|
-| 시스템 폴더 | **개인당 1개.** 대상 프로젝트는 `target_repo`로 가리킨다 |
+| 설치 위치 | **자기 프로젝트 폴더에 직접 얹는다** |
 | 교훈·설정 환류 | **포크 repo에 PR** (`punkyade/multiagent-ebiz`) |
 | 동시 작업 | 한 프로젝트는 보통 한 명 — 폴더 충돌 걱정 없음 |
 
-개인 폴더 1개로 모든 프로젝트를 처리합니다. 프로젝트마다 폴더를 만들지 마세요 — 교훈이 흩어지고,
-`log.md`가 쪼개져 나중에 되짚기 어려워집니다.
+각자 담당 프로젝트에서 그대로 씁니다. 대상 코드가 같은 폴더에 있으니 `target_repo`가 단순해집니다.
+
+> **기존 프로젝트에 얹어도 안전합니다** (3.5.0-ebiz.13~). 생성기가
+> `README.md`·`.gitignore`·`LICENSE`·`NOTICE`·`CHANGELOG.md`·`KNOWN_ISSUES.md`는 **이미 있으면
+> 건드리지 않고**, `CLAUDE.md`는 마커(`<!-- multiagent:start/end -->`) 사이에만 하네스 규칙을
+> 넣습니다. `.mcp.json`은 기존 서버를 남기고 병합합니다. 설치 후 **어느 파일을 안 건드렸는지
+> 목록으로 알려줍니다.**
+>
+> 그래도 설치 전 **커밋해 두는 걸 권합니다** — git이면 무엇이 바뀌었는지 `git status`로 즉시 보입니다.
 
 ---
 
@@ -44,18 +51,30 @@
 2. **Add Marketplace** → `punkyade/multiagent-ebiz`
 3. 목록에서 **multiagent-ebiz** 설치·활성화
 
-## 3. 개인 시스템 폴더 만들기
+## 3. 자기 프로젝트에 얹기
 
-빈 폴더를 하나 정하고(예: `~/multiagent`), 그 폴더에서 Claude Code를 띄운 뒤:
+담당 프로젝트 폴더에서 Claude Code를 띄운 뒤:
 
 ```
 멀티 에이전트 시스템 구성해줘
 ```
 
-flavor는 **claude**를 고릅니다. 끝나면 `validate.py`가 자동으로 돌며 PASS를 보여줍니다.
+flavor는 **claude**를 고르고 대상 폴더는 **그 프로젝트 폴더**를 지정합니다.
+끝나면 `validate.py`가 자동으로 돌며 PASS를 보여줍니다.
 
-> ⚠️ **이미 다른 하네스나 `CLAUDE.md`가 있는 폴더에 만들지 마세요.** 생성기는 `CLAUDE.md`와
-> `.mcp.json`을 덮어씁니다(`CLAUDE.md`는 `.multiagent-bak`으로 백업되지만 `.mcp.json`은 안 됩니다).
+설치 후 출력을 확인하세요 — 이런 줄이 나옵니다:
+
+```
+기존 파일 6개는 건드리지 않음(프로젝트 소유): .gitignore, README.md, LICENSE, ...
+CLAUDE.md: 기존 지침 보존 + 하네스 블록 추가
+기존 원문 백업: CLAUDE.md.multiagent-bak
+```
+
+`CLAUDE.md`는 **프로젝트 지침이 위, 하네스 규칙이 마커 안**에 들어갑니다. 프로젝트 규칙을 고칠 땐
+마커 **바깥**을 고치세요 — 마커 안은 다음 갱신 때 덮입니다.
+
+> **이미 다른 에이전트 하네스가 도는 폴더**(예: `.claude/agents/`에 도메인 에이전트가 있는
+> 프로젝트)라면 먼저 팀 리드와 상의하세요. 파일은 안 깨지지만 **두 체계의 작업 모델이 경쟁**합니다.
 
 ## 4. 환경 진단 — 무료, 반드시 통과시킬 것
 
@@ -103,6 +122,35 @@ python3 _shared/new-task.py 결제-시안대조 --preset design-diff
 ```
 
 ---
+
+## 5-1. 모니터 (선택) — mat
+
+작업 진행을 터미널에서 지켜봅니다. 워커 상태(대기·실행 중·완료·에러)·목적·로그를 한 화면에서
+보여주고, **시스템을 읽기만** 하므로 켜두거나 꺼도 진행에 영향이 없습니다.
+
+```bash
+# macOS
+brew install netwaif/tap/mat
+
+# Windows — 사전 빌드 바이너리가 없어 Go로 직접 빌드한다 (실측 확인: go 1.25.5)
+go install github.com/netwaif/mat@latest      # → %USERPROFILE%\go\bin\mat.exe
+```
+
+실행 — **작업 이름을 인자로** 줍니다:
+
+```bash
+MAT_ROOT=<프로젝트 폴더> mat <작업명>
+```
+
+```
+│ Workers                                        │
+│   [ ⏳ ] claude-main    설계 문서 초안을 작성한다  │
+│   [ ⏳ ] gemini         시안 이미지를 대조한다     │
+```
+
+> 워커 줄에 **brief의 Objective 첫 문장**이 뜹니다(3.5.0-ebiz.9~). 옛 템플릿으로 만든 brief는
+> 엉뚱한 줄이 뜨니, 그러면 `python3 _shared/new-task.py`로 새로 만드세요.
+> Windows에서 `mat`이 안 잡히면 `%USERPROFILE%\go\bin`을 PATH에 추가하세요.
 
 ## 6. 교훈 환류 — 이게 팀이 같이 나아지는 방법
 
