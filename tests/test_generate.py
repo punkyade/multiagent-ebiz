@@ -72,8 +72,36 @@ def slim_checks() -> int:
     return fails
 
 
+def shallow_path_check() -> int:
+    """validate.py가 얕은 경로에서도 모듈 로드되는지 (ZIP 평탄화 배포 회귀 가드).
+
+    ZIP은 generator/ 내용을 루트로 평탄화하므로 SCRIPT_DIR가 `/tmp/xxx/`처럼 얕아진다.
+    모듈 상수가 `parents[4]`를 무조건 인덱싱하면 IndexError로 **validate 전체가 죽는다**
+    (2026-08-13 CI ubuntu에서 검출 — 로컬 임시경로는 깊어서 안 보였다).
+    """
+    import importlib.util
+    from pathlib import PurePosixPath
+
+    spec = importlib.util.spec_from_file_location("_v", GEN / "validate.py")
+    mod = importlib.util.module_from_spec(spec)
+    try:
+        spec.loader.exec_module(mod)
+    except Exception as e:  # noqa: BLE001
+        print(f"  FAIL validate.py 모듈 로드 ({type(e).__name__}: {e})")
+        return 1
+    ok = True
+    for depth, n in ((PurePosixPath("/tmp/x"), 4), (PurePosixPath("/"), 2)):
+        try:
+            mod._ancestor(type(GEN)(str(depth)), n)
+        except Exception as e:  # noqa: BLE001
+            print(f"  FAIL _ancestor({depth}, {n}) → {type(e).__name__}")
+            ok = False
+    print(f"  {'PASS' if ok else 'FAIL'} 얕은 경로에서 validate 상수 계산 (ZIP 평탄화)")
+    return 0 if ok else 1
+
+
 def main() -> None:
-    fails = validate_all_pass() + slim_checks()
+    fails = validate_all_pass() + slim_checks() + shallow_path_check()
     print(f"test_generate: {'all pass' if not fails else f'{fails} fail'}")
     sys.exit(1 if fails else 0)
 

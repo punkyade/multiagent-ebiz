@@ -284,8 +284,22 @@ def _backends_problems(raw: str, flavor: str, target: Path) -> list[str]:
 
 # 분리 레이아웃(#17066 대응): 플러그인 본체는 plugins/<name>/ 하위, 마켓 카탈로그는
 # git 루트(.claude-plugin/marketplace.json + .agents/plugins/marketplace.json)에 있다.
-PLUGIN_ROOT = SCRIPT_DIR.parents[2]   # generator → configure-multiagent → skills → 플러그인 루트
-CATALOG_ROOT = SCRIPT_DIR.parents[4]  # git 루트 (카탈로그·front-page)
+def _ancestor(p: Path, n: int) -> Path:
+    """p의 n번째 상위. 깊이가 모자라면 최상위를 돌려준다.
+
+    ZIP 배포본은 generator/ 내용을 **루트로 평탄화**하므로(build_zip.py) SCRIPT_DIR가
+    `/tmp/xxx/` 처럼 얕아진다. 이때 `parents[4]`는 IndexError로 **모듈 로드 자체가 실패**해
+    validate가 통째로 죽는다 — repo 점검(--repo-check)은 ZIP에서 쓰지도 않는 기능인데,
+    그 상수 하나 때문에 flavor 검사까지 못 돌던 결함(2026-08-13, CI ubuntu에서 검출).
+    """
+    parents = p.parents
+    if not parents:          # p가 루트 자체(`/`, `C:\`)면 상위가 없다
+        return p
+    return parents[n] if n < len(parents) else parents[len(parents) - 1]
+
+
+PLUGIN_ROOT = _ancestor(SCRIPT_DIR, 2)   # generator → configure-multiagent → skills → 플러그인 루트
+CATALOG_ROOT = _ancestor(SCRIPT_DIR, 4)  # git 루트 (카탈로그·front-page)
 
 
 def _desc_text(rel: str, data: dict) -> str:
