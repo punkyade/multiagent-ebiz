@@ -5,6 +5,26 @@
 (정본: `generator/templates/{claude,codex}/CHANGELOG.md`)를 참조한다.
 형식은 [Keep a Changelog](https://keepachangelog.com/), 버전은 [Semantic Versioning](https://semver.org/lang/ko/)을 따른다.
 
+## [3.5.0-ebiz.3] - 2026-08-13
+
+### Added
+- **승인 게이트 사후 감사 `_shared/audit-approvals.py`** (3 flavor) — `log.md`의
+  `[WORKER_CALL]`을 `task.md`의 `workers_approved`와 대조해 **승인 없이 호출된 워커**를
+  찾아낸다. 외부 repo 쓰기 4조건(`target_repo` 명시 + `[APPROVAL]` 기록)도 함께 검사.
+  종료코드 0=위반 없음, 1=위반.
+
+  도입 이유: 승인 게이트는 이 시스템의 핵심 안전 속성인데 지금까지 **지켜졌는지 확인할
+  수단이 전혀 없었다**(`_shared/`의 유일한 실행 스크립트 `check-invariants.sh`는 문서
+  구조만 본다). 혼자 쓸 땐 신뢰로 충분하지만 여러 명이 각자 돌리면 명예 규정이 된다.
+
+  bash가 아니라 Python인 이유: Windows 팀원이 Git Bash 없이 돌릴 수 있어야 하고,
+  주석 블록·yaml 목록 파싱은 grep보다 파서가 안전하다.
+- **`tests/test_audit.py`** — 7케이스. 그중 C3은 `log.md` 템플릿이 HTML 주석 안에
+  `[WORKER_CALL]` 예시를 담고 있어 **주석을 걷어내지 않으면 모든 새 작업이 위반으로
+  오탐**되는 것을 막는 회귀 가드다(오탐하는 감사 도구는 즉시 신뢰를 잃는다).
+  C4는 승인 목록 2번째 항목 누락(파서 조기종료) 회귀 가드.
+- **CLAUDE.md / AGENTS.md** Approval Gate 절에 사후 감사 실행법 추가 (3 flavor).
+
 ## [3.5.0-ebiz.2] - 2026-08-13
 
 ### Added

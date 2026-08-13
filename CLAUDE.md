@@ -124,6 +124,17 @@ wc -w tasks/<task>/context.md   # 영문 단어수
 - 작업당 첫 호출 전 사용자에게 확인 후 `task.md` 업데이트
 - 예외: Orchestrator의 내부 추론은 worker 호출이 아니므로 승인 불필요
 
+**사후 감사(ebiz 추가)**: 게이트가 실제로 지켜졌는지는 지시 준수에만 의존할 수 없다.
+`log.md`의 `[WORKER_CALL]`을 `task.md`의 `workers_approved`와 대조해 증거로 확인한다:
+
+```bash
+python3 _shared/audit-approvals.py              # tasks/ 전체
+python3 _shared/audit-approvals.py tasks/<작업>  # 한 작업만
+```
+
+외부 repo 쓰기 4조건(`target_repo` 명시 + `[APPROVAL]` 기록)도 함께 검사한다.
+작업 완료(`status: done`) 시점과 팀 배포 전에 돌린다. 종료코드 0=위반 없음, 1=위반.
+
 ## Verification (결과물 수락 전 필수)
 
 각 worker `result.md`에 포함된 Verification Checklist를 실행하고, 결과를 `log.md`에 `[VERIFICATION]` 태그로 기록.

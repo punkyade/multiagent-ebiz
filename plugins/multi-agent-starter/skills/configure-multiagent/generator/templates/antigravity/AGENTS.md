@@ -136,6 +136,19 @@ If `context.md` exceeds the limit, append history to `log.md`, then keep only th
 - Antigravity Orchestrator internal reasoning does not require approval.
 - External paid model tools still require explicit user approval even if the task is already created.
 
+**Post-hoc audit (ebiz addition)**: gate compliance cannot rest on instruction-following
+alone. Cross-check `[WORKER_CALL]` entries in `log.md` against `workers_approved` in
+`task.md` with the evidence-based auditor:
+
+```bash
+python3 _shared/audit-approvals.py              # all tasks
+python3 _shared/audit-approvals.py tasks/<task> # one task
+```
+
+It also checks the 4 conditions for external repo writes (`target_repo` + `[APPROVAL]`
+record). Run it when a task reaches `status: done` and before any team rollout.
+Exit code 0 = no violations, 1 = violations found.
+
 ## Verification
 
 Before accepting a worker result, execute the `result.md` Verification Checklist and append the result to `log.md`.
