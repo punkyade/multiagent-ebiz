@@ -64,7 +64,10 @@ rec="$(jq -c --arg r "$ROLE" '.workers[$r] // empty' "$BACKENDS")"
 [ -n "$rec" ] || die "role 미정의: $ROLE" 2
 
 # 폴백 가용성 사전 점검(경고만): primary가 죽고 나서야 폴백 불가를 아는 것을 방지
+# CR 제거: 윈도우 네이티브 jq는 stdout을 텍스트 모드로 써 CRLF를 뱉는다. $()는 끝의 CR만
+# 지우므로 줄 단위로 읽는 지점에선 매 줄 직접 떼어내야 값이 오염되지 않는다(이하 동일).
 while IFS= read -r _fe; do
+  _fe="${_fe%$'\r'}"
   [ -n "$_fe" ] && [ -z "${!_fe:-}" ] && \
     echo "call_worker: 경고 — 폴백 필수 env 미설정: $_fe (primary 실패 시 폴백 불가)" >&2
 done < <(jq -r '.fallbacks[]?.api.required_env[]? // empty' <<<"$rec")
@@ -99,6 +102,7 @@ run_backend() {
     cmd+=("$command_bin")
     args_json="$(jq -r '.cli.args_template[]' <<<"$spec")"   # jq 실패 시 set -e 트리거
     while IFS= read -r a; do
+      a="${a%$'\r'}"   # jq CRLF 제거(위 참조) — 없으면 "exec\r" 같은 인자로 호출 자체가 실패
       case "$a" in
         "@brief")         cmd+=("$BRIEF");;
         "@brief_content") cmd+=("$(cat -- "$BRIEF")");;
@@ -125,6 +129,7 @@ run_backend() {
     case "$ref" in *..*) die "api.ref에 '..' 금지" 7;; esac
     [ -f "$ROOT/_shared/$ref" ] || die "api 스크립트 없음: $ref" 4
     while IFS= read -r reqenv; do
+      reqenv="${reqenv%$'\r'}"   # jq CRLF 제거(위 참조) — env명 오염 시 간접확장이 깨진다
       [ -n "$reqenv" ] || continue
       if [ -z "${!reqenv:-}" ]; then
         # die 대신 에러 envelope 반환: 폴백 체인에서 실패 사유가 최종 envelope에 남도록
@@ -184,5 +189,11 @@ while [ "$i" -lt "${nf:-0}" ]; do
   fi
   i=$((i+1))
 done
-jq -n --argjson e "${env_fb:-$env_primary}" '$e + {fallback_used:true}'
+# 폴백이 실제로 실행돼 envelope를 남겼을 때만 true. fallbacks:[] 인 워커(예: gemini)의
+# primary 실패를 "폴백 사용함"으로 잘못 보고하지 않도록 한다.
+if [ -n "$env_fb" ]; then
+  jq -n --argjson e "$env_fb"      '$e + {fallback_used:true}'
+else
+  jq -n --argjson e "$env_primary" '$e + {fallback_used:false}'
+fi
 exit 1

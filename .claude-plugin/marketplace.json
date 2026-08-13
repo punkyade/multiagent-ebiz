@@ -1,18 +1,19 @@
 {
-  "name": "multi-agent-starter",
-  "description": "파일 기반 멀티에이전트 오케스트레이션 시스템 생성기 — Claude Code / Codex 양쪽에서 한 번에 구성",
+  "name": "multiagent-ebiz-marketplace",
+  "description": "ebiz 내부용 파일 기반 멀티에이전트 오케스트레이션 시스템 생성기 — Claude Code / Codex 양쪽에서 한 번에 구성 (원작: netwaif/multi-agent-starter)",
   "owner": {
-    "name": "netwaif",
-    "email": "netwaif@users.noreply.github.com"
+    "name": "punkyade",
+    "email": "punkyade@users.noreply.github.com",
+    "url": "https://github.com/punkyade"
   },
   "plugins": [
     {
-      "name": "multi-agent-starter",
-      "description": "\"멀티 에이전트 시스템 구성해줘\"로 file-as-memory 오케스트레이션 시스템(승인 게이트·작업 재진입 프로토콜·토폴로지 4패턴·불변식 자가점검)을 대상 폴더에 결정적으로 생성. flavor: claude | codex | antigravity.",
-      "version": "3.5.0",
+      "name": "multiagent-ebiz",
+      "description": "\"멀티 에이전트 시스템 구성해줘\"로 file-as-memory 오케스트레이션 시스템(승인 게이트·작업 재진입 프로토콜·토폴로지 4패턴·불변식 자가점검)을 대상 폴더에 결정적으로 생성. flavor: claude | codex | antigravity. (원작: netwaif/multi-agent-starter)",
+      "version": "3.5.0-ebiz.1",
       "source": "./plugins/multi-agent-starter",
       "author": {
-        "name": "netwaif"
+        "name": "punkyade"
       }
     }
   ]

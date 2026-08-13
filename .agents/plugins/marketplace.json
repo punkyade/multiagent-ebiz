@@ -1,11 +1,11 @@
 {
-  "name": "multi-agent-starter",
+  "name": "multiagent-ebiz-marketplace",
   "interface": {
-    "displayName": "MultiAgent Starter"
+    "displayName": "ebiz MultiAgent"
   },
   "plugins": [
     {
-      "name": "multi-agent-starter",
+      "name": "multiagent-ebiz",
       "source": {
         "source": "local",
         "path": "./plugins/multi-agent-starter"

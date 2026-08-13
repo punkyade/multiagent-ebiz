@@ -5,6 +5,44 @@
 (정본: `generator/templates/{claude,codex}/CHANGELOG.md`)를 참조한다.
 형식은 [Keep a Changelog](https://keepachangelog.com/), 버전은 [Semantic Versioning](https://semver.org/lang/ko/)을 따른다.
 
+## [3.5.0-ebiz.1] - 2026-08-12
+
+ebiz 내부 포크의 첫 릴리스. 원작 [netwaif/multi-agent-starter](https://github.com/netwaif/multi-agent-starter) v3.5.0에서 분기.
+팀이 **Windows·macOS 혼재**라 Windows를 1급 환경으로 올리는 데 집중했다.
+
+### Fixed
+- **디스패처 CRLF 오염 (Windows 차단점)** — 네이티브 Windows `jq`가 stdout에 CRLF를 쓰는데,
+  MSYS bash의 `$()`는 끝의 CR만 제거한다. 그 결과 `args_template[]` 등 **다중행 순회에서만**
+  `\r`이 남아 cli 워커 인자가 `"exec\r"`·`"--prompt\r"`로 오염 → gemini·codex CLI 폴백이
+  전량 실패했다. `call_worker.sh`의 jq 줄단위 순회 3곳에서 CR 제거(3 flavor 동일).
+- **`fallback_used` 거짓 보고** — `fallbacks: []` 인 워커(gemini)의 primary 실패가
+  "폴백 사용함(true)"으로 기록되던 문제. 폴백이 실제로 envelope를 남겼을 때만 true.
+  `[VERIFICATION]` 로그의 사후 진단을 오도하던 값이다.
+- **비-UTF-8 로케일에서 생성기 크래시** — 한국어 Windows(cp949)에서 `validate.py`의 em dash
+  출력이 `UnicodeEncodeError`로 죽어 `init.py`의 자동 validate가 3 flavor 모두 exit 1이었다.
+  `init.py`·`validate.py`·`sync_claude_template.py`의 표준 출력을 UTF-8로 고정하고,
+  이를 캡처하는 테스트 2종에 `encoding="utf-8"` 명시(자식·부모가 한 쌍으로만 성립).
+
+### Added
+- **`.gitattributes`** (루트 + 3 flavor 템플릿) — `* text=auto eol=lf`. Windows에서 CRLF로
+  체크아웃되면 셸 스크립트와 루트↔템플릿 바이트 비교가 깨진다. 워킹트리도 LF로 정규화
+  (인덱스가 이미 LF라 내용 diff는 없음).
+- **README Windows 팀원 셋업** — Git Bash + jq 요구사항, 도구 확인 스니펫, jq CRLF 함정 주의.
+
+### Changed
+- **포크 정체성** — 매니페스트 4종을 `punkyade` / `multiagent-ebiz` / `3.5.0-ebiz.1`로
+  (배포처: https://github.com/punkyade/multiagent-ebiz).
+  플러그인 디렉토리(`plugins/multi-agent-starter/`)는 그대로 뒀다 — `check-invariants.sh`와
+  테스트 2종이 이 경로를 하드코딩하고 있어, 이름만 바꾸는 것으로 충돌 회피 목적은 달성된다.
+  `LICENSE`는 원저작권 표시를 유지하고 개변분 표기를 추가(MIT 준수), `NOTICE`에 포크 출처 명시.
+- **KI-3 재작성** — "Windows 네이티브 미지원"에서 **"조건부 지원(Git Bash + jq)"** 으로 하향.
+  원 항목의 전제("agy는 네이티브 Windows 빌드 미확인")가 실측으로 뒤집혔다 — agy v1.1.12는
+  `PE32+ executable for MS Windows x86-64`다. 디스패처 Python 이식은 우선순위에서 내렸다.
+
+### 미검증 (사내 후속)
+- gemini 워커 **실호출 스모크** (유료 호출 — 승인 게이트 대상), codex CLI 폴백 실경로.
+- macOS에서의 `tests/run.sh` 재확인 — 이번 수정분은 Windows에서만 전량 통과를 확인했다.
+
 ## [3.5.0] - 2026-07-24
 
 ### Added

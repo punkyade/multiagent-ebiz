@@ -25,6 +25,14 @@ import subprocess
 import sys
 from pathlib import Path
 
+# 로케일이 UTF-8이 아닌 환경(예: 한국어 Windows cp949)에서 한글·em dash 출력이
+# UnicodeEncodeError로 죽지 않도록 표준 출력 인코딩을 고정한다.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8")
+    except (AttributeError, OSError):  # 비-TextIO로 리다이렉트된 경우
+        pass
+
 SCRIPT_DIR = Path(__file__).resolve().parent          # plugins/<name>/skills/configure-multiagent/generator/
 REPO_ROOT = SCRIPT_DIR.parents[4]                      # 실제 git 루트 (시스템 파일 _shared/·_templates/·CLAUDE.md 위치)
 TEMPLATE_DIR = SCRIPT_DIR / "templates" / "claude"

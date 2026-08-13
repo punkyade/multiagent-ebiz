@@ -2,16 +2,22 @@
   <img src="./assets/brand/harness-multiagent-banner.png" alt="Harness MultiAgent" width="100%">
 </p>
 
-# multi-agent-starter
+# multiagent-ebiz
 
 파일 기반 멀티에이전트 오케스트레이션 시스템 **생성기**. Claude Code · Codex · Antigravity
 어느 쪽이든 오케스트레이터로 두는 file-as-memory 멀티에이전트 시스템을 원하는 폴더에 결정적으로 만든다.
 **어느 벤더·모델에도 매이지 않는 하네스**가 목표 — 워커는 역할이고, 모델·연결 방식은 교체 가능한 설정이다.
 
+> **ebiz 내부 포크**입니다. 원작: [netwaif/multi-agent-starter](https://github.com/netwaif/multi-agent-starter) (MIT).
+> 개변 내역은 `CHANGELOG.md`, 출처 표기는 `NOTICE` 참조. 버전은 `<upstream>-ebiz.<n>` 규칙을 따릅니다.
+
 > v2부터 "clone 후 그대로 사용"이 아니라 **플러그인/생성기**로 배포한다.
 > 설치 후 자연어 한 마디 — "멀티 에이전트 시스템 구성해줘" — 면 끝.
 
-> **동작 환경**: macOS·Linux에서 개발·검증됨. Windows는 **실험적** — 설치·시스템 구성·클로드 워커·코덱스 워커는 동작하지만, 제미나이 워커는 WSL 등 POSIX 환경(bash·jq·agy)이 필요하며 **아직 검증 전**이다. 정식 Windows 지원은 후속 버전 목표. (자세히는 KNOWN_ISSUES.md KI-3)
+> **동작 환경**: macOS·Linux·Windows. 팀이 혼재 환경이라 Windows를 1급으로 다룬다 —
+> 디스패처의 CRLF 결함을 고쳤고(`3.5.0-ebiz.1`), `agy`는 네이티브 Windows 빌드가 있다.
+> 단 Windows에서는 **Git Bash + jq**가 필요하다(cmd·PowerShell 단독 불가).
+> 제미나이 워커 실호출 스모크는 **아직 미검증**. (자세히는 KNOWN_ISSUES.md KI-3)
 
 ## 무엇을 만들어 주나
 
@@ -40,13 +46,13 @@
 Claude Code·Codex 모두 **동일한 플러그인 흐름**이다:
 
 1. 호스트에서 `/plugins` 실행
-2. **Add Marketplace** 선택 → 저장소 `netwaif/multi-agent-starter` 입력
-3. 목록에서 **multi-agent-starter** 를 Enter로 설치·활성화
+2. **Add Marketplace** 선택 → 저장소 `punkyade/multiagent-ebiz` 입력
+3. 목록에서 **multiagent-ebiz** 를 Enter로 설치·활성화
 4. `멀티 에이전트 시스템 구성해줘` → flavor·대상 폴더를 묻고 생성
 
 ### ZIP (플러그인 없이 — 최소 기술)
 
-1. [Releases](https://github.com/netwaif/multi-agent-starter/releases)에서 `multi-agent-starter-<버전>.zip` 받아 압축 해제
+1. [Releases](https://github.com/punkyade/multiagent-ebiz/releases)에서 `multiagent-ebiz-<버전>.zip` 받아 압축 해제
 2. macOS `run.command` / Windows `run.bat` 더블클릭 (또는 폴더에서 `python3 init.py`)
 3. 메뉴에서 flavor·대상 폴더 선택
 
@@ -98,6 +104,26 @@ v1은 이 repo를 clone해 루트 파일을 그대로 썼다. v2에서는 **같�
 
 > 에러가 나면 `call_worker: …` 메시지가 가리키는 도구를 설치하고 재시도하면 대부분 해결된다.
 
+### Windows 팀원 셋업
+
+디스패처(`call_worker.sh`)가 bash 스크립트라 **Git Bash에서 실행**해야 한다(cmd·PowerShell 단독 불가).
+네이티브 Windows용 `agy`·`codex`·`jq` 빌드가 모두 있으므로 WSL은 필수가 아니다.
+
+```bash
+winget install jqlang.jq        # jq — 디스패처 JSON 파싱
+# Git for Windows(Git Bash), Python 3, agy, codex 는 각 설치 절차대로
+```
+
+설치 후 Git Bash에서 확인:
+
+```bash
+for t in bash jq python3 git codex agy; do printf "%-8s " "$t"; command -v $t || echo "(없음)"; done
+```
+
+> **주의**: 네이티브 Windows `jq`는 stdout에 CRLF를 쓴다. 디스패처는 이 포크에서 CR을 제거하도록
+> 고쳤지만(`3.5.0-ebiz.1`), 직접 `jq`를 파싱하는 스크립트를 추가할 땐 같은 함정을 조심할 것.
+> 저장소 개행은 `.gitattributes`(`* text=auto eol=lf`)로 LF에 고정돼 있다.
+
 ## 모니터링 (선택) — mat
 
 작업 진행을 터미널에서 지켜보고 싶다면 **[mat](https://github.com/netwaif/mat)** (MultiAgent Tracker)를 함께 쓴다.
@@ -114,7 +140,7 @@ MAT_ROOT=<생성된-폴더> mat
 ## 저장소 구조
 
 ```
-multi-agent-starter/                 # 마켓플레이스 카탈로그 (루트)
+multiagent-ebiz/            # 마켓플레이스 카탈로그 (루트)
 ├── .claude-plugin/marketplace.json  # Claude Code 마켓 카탈로그 → plugins/multi-agent-starter
 ├── .agents/plugins/marketplace.json # Codex 마켓 카탈로그 → plugins/multi-agent-starter
 ├── plugins/

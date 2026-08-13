@@ -1,6 +1,20 @@
 NOTICE — Third-Party Attributions
 =================================
 
+Upstream project (ebiz fork)
+----------------------------
+
+This project is an internal ebiz fork of:
+
+  - Source:  https://github.com/netwaif/multi-agent-starter
+  - Author:  netwaif
+  - License: MIT (see LICENSE — the upstream copyright notice is retained)
+  - Forked at: v3.5.0
+
+Modifications by ebiz are released under the same MIT license and are tracked
+in CHANGELOG.md. The fork carries the version suffix `-ebiz.<n>` (e.g.
+3.5.0-ebiz.1) so the upstream lineage stays readable.
+
 Operating Principles (4원칙)
 ----------------------------
 

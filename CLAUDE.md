@@ -86,7 +86,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 ## Task Lifecycle
 
 1. `tasks/<task-name>/task.md` 작성 (status: pending) — **형식은 `_templates/task.md` 그대로**(`## 메타` yaml 펜스 + `## Goal`, frontmatter `---` 금지 — mat 모니터가 이 형식을 파싱). 단, 새 폴더가 기존 작업의 후속·핸드오프·하위 단계면 생성 전 `_shared/orchestrator-rules.md` §3 "새 작업 폴더 생성 게이트"를 먼저 적용
-2. `_shared/routing.md` 참조 → 최소 worker set 결정
+2. `_shared/routing.md` 참조 → 최소 worker set 결정. 직군(기획·디자인·퍼블·프론트·백엔드·QA) 언어로 들어온 요청이면 `_shared/team-routing.md`(사내층)를 먼저 본다
 3. **target_repo 확인** (외부 산출물 작업인 경우):
    - codex-main이 planned_workers에 포함되거나 코드·문서·이미지를 만드는 작업이면 사용자에게 `target_repo` 경로를 묻는다
    - 사용자가 "없음"이라고 답하거나 분석·리뷰·요약·기획만 하는 작업이면 묻지 않고 `tasks/<task>/artifacts/`에 diff·patch로 산출

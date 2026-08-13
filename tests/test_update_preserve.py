@@ -18,7 +18,7 @@ def init(tgt: Path) -> subprocess.CompletedProcess:
     return subprocess.run(
         [sys.executable, str(GEN / "init.py"),
          "--flavor", FLAVOR, "--target", str(tgt), "--yes", "--no-validate"],
-        capture_output=True, text=True,
+        capture_output=True, text=True, encoding="utf-8",
     )
 
 

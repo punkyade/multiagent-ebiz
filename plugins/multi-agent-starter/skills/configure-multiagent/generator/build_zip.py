@@ -8,7 +8,7 @@
 ZIP 내부는 generator/ 내용을 루트로 평탄화한다 (init.py가 SCRIPT_DIR 기준으로
 templates/·validate.py를 찾으므로 한 폴더에 모이면 그대로 동작):
 
-    multi-agent-starter-<version>/
+    multiagent-ebiz-<version>/
     ├── README.txt        # 한글 quickstart
     ├── init.py           # generator/init.py 사본
     ├── validate.py       # generator/validate.py 사본
@@ -34,10 +34,20 @@ import tempfile
 import zipfile
 from pathlib import Path
 
+# 로케일이 UTF-8이 아닌 환경(예: 한국어 Windows cp949)에서 한글·em dash 출력이
+# UnicodeEncodeError로 죽지 않도록 표준 출력 인코딩을 고정한다.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8")
+    except (AttributeError, OSError):  # 비-TextIO로 리다이렉트된 경우
+        pass
+
 SCRIPT_DIR = Path(__file__).resolve().parent          # skills/configure-multiagent/generator/
 REPO_ROOT = SCRIPT_DIR.parents[2]                      # plugin root (plugins/multi-agent-starter/)
 TEMPLATES_DIR = SCRIPT_DIR / "templates"
 PLUGIN_JSON = REPO_ROOT / ".claude-plugin" / "plugin.json"
+# ZIP 파일명·내부 루트 폴더명. 포크 시 여기 한 곳만 바꾸면 된다.
+PKG_NAME = "multiagent-ebiz"
 
 # 재현 가능한 zip: 모든 엔트리 mtime을 이 값으로 고정 (zip 최소 연도 1980).
 FIXED_DATE = (1980, 1, 1, 0, 0, 0)
@@ -110,7 +120,7 @@ def read_version() -> str:
 
 def collect_payload() -> list[tuple[str, bytes, bool]]:
     """ZIP에 담을 (arcname, bytes, is_executable) 목록을 정렬해 반환."""
-    root = "multi-agent-starter"  # 버전은 호출부에서 접두어로 붙임
+    root = PKG_NAME  # 버전은 호출부에서 접두어로 붙임
     items: list[tuple[str, bytes, bool]] = []
 
     # 1) 평탄화 대상: generator/init.py, generator/validate.py
@@ -135,7 +145,7 @@ def collect_payload() -> list[tuple[str, bytes, bool]]:
 
 def build(out_dir: Path, version: str) -> Path:
     out_dir.mkdir(parents=True, exist_ok=True)
-    zip_path = out_dir / f"multi-agent-starter-{version}.zip"
+    zip_path = out_dir / f"{PKG_NAME}-{version}.zip"
     payload = collect_payload()
 
     with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
@@ -154,9 +164,9 @@ def self_test(zip_path: Path) -> None:
         tmp_path = Path(tmp)
         with zipfile.ZipFile(zip_path) as zf:
             zf.extractall(tmp_path)
-        pkg = next(tmp_path.glob("multi-agent-starter-*")) if list(
-            tmp_path.glob("multi-agent-starter-*")
-        ) else tmp_path / "multi-agent-starter"
+        pkg = next(tmp_path.glob(f"{PKG_NAME}-*")) if list(
+            tmp_path.glob(f"{PKG_NAME}-*")
+        ) else tmp_path / PKG_NAME
         init_py = pkg / "init.py"
         if not init_py.is_file():
             sys.exit(f"[self-test FAIL] ZIP 안에 init.py 없음: {init_py}")
@@ -166,7 +176,7 @@ def self_test(zip_path: Path) -> None:
             rc = subprocess.run(
                 [sys.executable, str(init_py), "--flavor", flavor,
                  "--target", str(target), "--yes"],
-                capture_output=True, text=True,
+                capture_output=True, text=True, encoding="utf-8",
             )
             tail = (rc.stdout + rc.stderr).strip().splitlines()[-3:]
             if rc.returncode != 0:

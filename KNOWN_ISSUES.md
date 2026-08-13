@@ -67,27 +67,36 @@ mat의 핵심 화면 요소인 "워커 한 줄 목적"이 실제 Objective가 �
 
 ---
 
-## KI-3 — Windows 네이티브 미지원 (gemini/api 워커가 POSIX bash 디스패처에 의존)
+## KI-3 — Windows 지원: **조건부 지원**으로 하향 (Git Bash + jq 필요)
 
-- **상태**: 열림 / **보류** (출시 후 대응. 디스패처 Python 이식은 v2.1 로드맵)
-- **심각도**: 중간 — 생성기·파일 코어·native(claude Task)·MCP(codex) 워커는 크로스플랫폼으로 동작. 차단점은 **gemini 워커(+api 폴백)** 한정.
+- **상태**: **부분 해소** (3.5.0-ebiz.1) / 잔여 항목만 열림
+- **심각도**: 낮음–중간 — 차단점이던 CRLF 결함은 해소. 남은 것은 **실호출 스모크 미검증** 한정.
 
-### 증상
+> ebiz 포크 갱신 (2026-08-12, Windows 11 / Git Bash 실측). 원 항목의 전제 두 개가 **사실이 아님**이 확인돼 재작성했다.
 
-네이티브 Windows(cmd/PowerShell)에서 gemini 워커 호출 시 디스패처가 실행되지 않는다.
+### 원 항목에서 뒤집힌 전제
 
-### 근본 원인
+| 원 서술 | 실측 |
+|---|---|
+| "agy는 맥/리눅스 지향, 네이티브 Windows 빌드 미확인" | **네이티브 Windows 빌드 존재** — `agy` v1.1.12, `PE32+ executable for MS Windows x86-64`. WSL 불필요 |
+| "Git Bash는 리눅스 바이너리를 못 돌리므로 더 불확실" | agy·codex·jq 모두 네이티브 Windows 빌드라 Git Bash에서 그대로 실행됨 |
 
-- `_shared/adapters/call_worker.sh`(+ `gemini_api.sh`)가 **bash·jq·timeout·mktemp·`/dev/null`** 등 POSIX 전용 요소를 사용.
-- `_shared/backends.json`의 gemini 항목도 `stdin:"/dev/null"`, `cwd_policy:"isolated_tmp"` 등 POSIX 형태.
-- native(claude)·mcp(codex)는 디스패처를 거치지 않아 영향 없음.
+### 실제 차단점이었던 것 (해소됨)
 
-### 우회 / 미확정
+원 항목이 지목한 POSIX 의존(`bash`·`mktemp`·`/dev/null`)은 Git Bash가 전부 제공하므로 차단점이 아니었다.
+진짜 원인은 **네이티브 Windows `jq`가 stdout에 CRLF를 쓴다**는 점이었다:
 
-- 우회: **WSL 또는 Git Bash + jq + agy**. 단 **`agy`(Antigravity CLI)의 Windows/WSL 지원 자체가 미검증** — Git Bash는 리눅스 바이너리를 못 돌리므로 더 불확실. → 우회로도 완전 보장 아님.
-- 설치 자체가 bash 인스톨러(`curl … | bash`)라 agy는 맥/리눅스 지향으로 보임(네이티브 Windows 빌드 미확인).
+- MSYS bash의 `$()`는 **끝의 CR만** 제거 → 스칼라 읽기는 멀쩡한데 `args_template[]` 같은 **다중행 순회에서만** `\r`이 남았다.
+- 그 결과 `cli` 워커 인자가 `"exec\r"`·`"--prompt\r"` 형태로 오염돼 **gemini·codex CLI 폴백이 전량 실패**.
+- 수정: `call_worker.sh`의 jq 줄단위 순회 3곳에서 CR 제거. 저장소 개행은 `.gitattributes`(`* text=auto eol=lf`)로 고정.
 
-### 다음 (출시 후)
+### 남은 미검증 (사내 검증 대상)
 
-- 실제 Windows 기기에서 풀 체인 검증: agy Windows/WSL 가용성 → jq·python3 → `call_worker.sh` 1회 실행.
-- 필요 시 디스패처를 Python(`_shared/adapters/_run.py`)으로 이식해 OS 독립화(C안). 단 이식만으로 "네이티브 Windows 완전 지원" 보장은 아님(호스트 도구·agy 의존).
+- **gemini 워커 실호출 스모크 1회** — 유료 호출이라 승인 게이트 대상. 미실행.
+- **codex CLI 폴백** 실경로(정상 경로인 MCP 서버는 무관).
+- macOS에서의 회귀 테스트 재확인 — 오늘 수정분은 Windows에서만 `tests/run.sh` 전량 통과를 확인했다.
+
+### 요구사항 (Windows)
+
+**Git Bash + jq** 필수. cmd·PowerShell 단독 실행은 여전히 불가 — 디스패처가 bash 스크립트인 설계는 그대로다.
+OS 독립화(디스패처 Python 이식)는 위 전제가 뒤집힌 이상 **우선순위에서 내린다**.

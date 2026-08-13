@@ -95,7 +95,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 ## Task Lifecycle
 
 1. Create `tasks/<task-name>/task.md` (`status: pending`).
-2. Read `_shared/routing.md` and choose the minimum worker set.
+2. Read `_shared/routing.md` and choose the minimum worker set. For requests phrased in team-role terms (기획·디자인·퍼블·프론트·백엔드·QA), read `_shared/team-routing.md` first.
 3. Confirm **target_repo** when the task will produce external files:
    - If `codex-main` is planned, or the task creates code, docs, or images for another repo, ask for `target_repo` before filling `task.md`.
    - If the user says there is no external target, or the task is analysis/review/planning only, keep outputs under `tasks/<task>/artifacts/`.

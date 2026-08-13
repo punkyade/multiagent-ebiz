@@ -22,7 +22,9 @@ KNOT_START, KNOT_END = "<!-- knot:start -->", "<!-- knot:end -->"
 
 
 def run(args: list[str]) -> subprocess.CompletedProcess:
-    return subprocess.run(args, capture_output=True, text=True)
+    # encoding 명시: 생성기 스크립트는 UTF-8로 출력한다. 미지정 시 부모가 로케일
+    # 인코딩(예: 한국어 Windows cp949)으로 디코딩해 한글 출력에서 깨진다.
+    return subprocess.run(args, capture_output=True, text=True, encoding="utf-8")
 
 
 def init(tgt: Path, f: str) -> subprocess.CompletedProcess:
