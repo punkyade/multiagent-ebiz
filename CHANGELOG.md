@@ -5,6 +5,41 @@
 (정본: `generator/templates/{claude,codex}/CHANGELOG.md`)를 참조한다.
 형식은 [Keep a Changelog](https://keepachangelog.com/), 버전은 [Semantic Versioning](https://semver.org/lang/ko/)을 따른다.
 
+## [3.5.0-ebiz.4] - 2026-08-13
+
+팀 배포 전 정합성·온보딩 도구 묶음. 전부 3 flavor 공용이고 외부 호출 0건.
+
+### Added
+- **`_shared/check-limits.py`** — brief(≤1200자/240단어)·context(≤1500자/300단어) 한도를
+  **실제로** 검사. 지금까지 INV4가 한 일은 "문서에 `1200자`라는 글자가 있는가" 확인뿐이라
+  3000자 brief도 전부 PASS했다(강제하지 않는 숫자 = 거짓 안전신호).
+  측정은 **오케스트레이터가 쓴 내용**만 — 안내 주석과 고정 규약 블록(175자 상수)은
+  줄일 수 없으므로 제외. 한글은 글자수·영문은 단어수 기준.
+- **`_shared/doctor.py`** — 환경 진단 6종(핵심 도구·git·backends.json·워커 백엔드·
+  MCP 설정·디스패처 드라이런). `backends.json`이 선언한 워커만 검사하므로 flavor 무관.
+  드라이런은 `--merged-preview`라 모델 호출 0건.
+- **`_templates/smoke-task.md`** — 신규 팀원 온보딩 1회용 절차(무료 doctor → 유료 스모크).
+  `tasks/`에 두지 못하는 이유: 생성기가 그 폴더를 사용자 데이터로 보고 복사하지 않는다.
+- **`tests/test_limits.py`(7) · `tests/test_doctor.py`(5)** — CI 3-OS에서 상시 검증.
+
+### Fixed
+- **doctor 초안의 Windows 경로 결함 2건** (작성 중 발견·수정, CI 매트릭스가 잡을 부류):
+  - `bash`를 이름으로 호출하면 Windows에서 **System32의 WSL bash로 해석**될 수 있고,
+    WSL bash는 `C:/…` 경로를 못 읽어 디스패처 드라이런이 exit 127로 죽었다.
+    `shutil.which("bash")`로 고정 + 경로는 `as_posix()`로 전달.
+  - `codex --version`이 이름 호출로는 실패(확장자 없는 셸 스크립트) → `which` 결과 사용.
+
+### Changed
+- CLAUDE.md Context Rules에 한도 검사 실행법, AGENTS.md(codex·antigravity)에 doctor·
+  check-limits 안내 추가.
+
+### 알려진 긴장 (미해결)
+- `_templates/worker-brief.md` **원문은 1455자/256단어로 문서화된 한도를 넘는다.**
+  템플릿은 brief가 아니라 스캐폴드(안내 주석·고정 규약 블록·플레이스홀더 포함)이므로
+  검사기는 가변부만 잰다. 다만 가변부 기준으로도 빈 스캐폴드가 1162자라 여유가 38자뿐이다.
+  codex 계열 brief(Execution Context yaml 필수)는 실사용에서 초과할 가능성이 있다.
+  한도 상향이 필요해지면 CLAUDE.md·두 템플릿·INV4·validate C3를 **함께** 고쳐야 한다.
+
 ## [3.5.0-ebiz.3] - 2026-08-13
 
 ### Added

@@ -115,6 +115,14 @@ wc -m tasks/<task>/context.md   # 한글 글자수 (UTF-8 multi-byte)
 wc -w tasks/<task>/context.md   # 영문 단어수
 ```
 
+**한도 검사(ebiz 추가)** — 위 숫자는 강제되지 않으면 거짓 안전신호다. 실측 검사기:
+```bash
+python3 _shared/check-limits.py                # tasks/ 전체
+python3 _shared/check-limits.py tasks/<task> -v # 실측치까지 출력
+```
+안내 주석과 고정 규약 블록은 오케스트레이터가 줄일 수 없으므로 계산에서 제외한다.
+한글 문서는 글자수, 영문 문서는 단어수로 판정. 초과 시 답은 줄이기 아니면 packet 분리다.
+
 **context.md 초과 시**: 핵심만 남기고 나머지는 `log.md`에 append 후 초기화.  
 **brief 작성 원칙**: 파일 내용을 inline 금지. 경로만 전달. 대용량 자료 동봉이 필요한 호출(예: gemini 소스 검토)은 `sources/` packet 파일 + 디스패처 payload 인자(`call_worker.sh <role> <brief> <packet>`)로 — brief 한도·inline 금지 규칙은 그대로 유지된다.
 

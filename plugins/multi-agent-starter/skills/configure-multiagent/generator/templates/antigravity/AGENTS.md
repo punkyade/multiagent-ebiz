@@ -145,6 +145,13 @@ python3 _shared/audit-approvals.py              # all tasks
 python3 _shared/audit-approvals.py tasks/<task> # one task
 ```
 
+**Environment doctor & limit check (ebiz addition)**:
+
+```bash
+python3 _shared/doctor.py        # tools · backends.json · dispatcher dry-run (free)
+python3 _shared/check-limits.py  # brief/context size limits, actually enforced
+```
+
 It also checks the 4 conditions for external repo writes (`target_repo` + `[APPROVAL]`
 record). Run it when a task reaches `status: done` and before any team rollout.
 Exit code 0 = no violations, 1 = violations found.
