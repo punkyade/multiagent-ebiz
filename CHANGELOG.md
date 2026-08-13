@@ -5,6 +5,25 @@
 (정본: `generator/templates/{claude,codex}/CHANGELOG.md`)를 참조한다.
 형식은 [Keep a Changelog](https://keepachangelog.com/), 버전은 [Semantic Versioning](https://semver.org/lang/ko/)을 따른다.
 
+## [3.5.0-ebiz.15] - 2026-08-13
+
+### Added
+- **워커 호출 원장** — 디스패처가 호출(시도)마다 `_local/calls.jsonl` 에 1줄씩 append한다
+  (`ts`·`task`·`role`·`backend`·`model`·`status`·`exit_code`·`duration_s`). 디스패처는 이
+  데이터를 이미 다 갖고 있었는데 호출이 끝나면 버려졌다. 작업명은 brief 경로에서 뽑는다.
+  **best-effort** — 원장 기록 실패가 워커 호출을 죽이지 않는다. `_local/` 이라 git 추적
+  대상이 아니고 생성기 update에도 보존된다.
+- **`_shared/usage-report.py`** — 기간·워커·모델별 호출 수, 총·평균 소요시간, 성공/실패/
+  빈출력 집계. `--days N`, `--failures`.
+  **비용 도구가 아니라 품질 도구이기도 하다** — 오늘 개별 호출을 눈으로 봐야 잡혔던 결함들
+  (모델 라벨 거짓·권한 거부로 인한 빈 출력·폴백 유실)이 여기서는 비율 변화로 먼저 보인다.
+  한계를 정직하게 표시: `claude-main`은 native라 원장에 안 남으므로 `tasks/*/log.md` 의
+  `[WORKER_CALL]` 수를 함께 보고해 **원장의 사각지대**를 드러낸다.
+- `tests/test_usage_report.py` (7) — 핵심 가드 둘: C4는 log 템플릿의 **HTML 주석 예시를
+  호출로 세지 않는지**(audit-approvals 가 빠졌던 것과 같은 계열), C5는 **깨진 원장 줄**에
+  크래시하지 않고 개수만 보고하는지.
+- `docs/ONBOARDING.md` 에 mat 모니터·사용량 확인 절 추가.
+
 ## [3.5.0-ebiz.14] - 2026-08-13
 
 ### Added

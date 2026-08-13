@@ -152,6 +152,30 @@ MAT_ROOT=<프로젝트 폴더> mat <작업명>
 > 엉뚱한 줄이 뜨니, 그러면 `python3 _shared/new-task.py`로 새로 만드세요.
 > Windows에서 `mat`이 안 잡히면 `%USERPROFILE%\go\bin`을 PATH에 추가하세요.
 
+## 5-2. 사용량 확인
+
+디스패처가 호출마다 `_local/calls.jsonl`에 기록을 남깁니다(자동, 별도 조작 없음).
+
+```bash
+python3 _shared/usage-report.py            # 전체 기간
+python3 _shared/usage-report.py --days 7   # 최근 7일
+python3 _shared/usage-report.py --failures # 실패 건 상세
+```
+
+```
+총 5회 · 성공 3 · 실패 2(빈출력 1 · 타임아웃 0) · 총 2.2분
+
+워커별            호출  성공  실패  빈출력   총시간   평균
+  gemini            3     2     1      1      43초   14초
+  codex-critic      2     1     1      0     1.5분   45초
+```
+
+**비용만 보는 게 아닙니다.** 실패·빈출력·폴백 비율이 함께 보이므로 품질 이상이 집계에서 먼저
+드러납니다 — "gemini 빈출력이 갑자기 늘었다"면 권한 설정이나 백엔드 쪽 문제입니다.
+
+> `claude-main`은 native 호출이라 디스패처를 안 거쳐 원장에 안 남습니다. 리포트가 `log.md`
+> 기준 호출 수를 함께 보여주며, 두 숫자의 차이가 원장의 사각지대입니다.
+
 ## 6. 교훈 환류 — 이게 팀이 같이 나아지는 방법
 
 **작업이 끝나면 교훈을 `_local/learnings.md`에 씁니다.** 여기가 먼저인 이유가 있습니다:

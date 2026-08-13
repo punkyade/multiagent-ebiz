@@ -53,6 +53,9 @@ BRIEF="$(cd "$(dirname -- "$BRIEF")" && pwd)/$(basename -- "$BRIEF")"
 # 불과하다는 지적이 성립했다(codex-critic, 2026-08-13 — 실제로 cat 전문이 전달됐다).
 # payload(동봉 자료)는 원본 자료이므로 건드리지 않는다 — 병합 전에 brief만 처리한다.
 BRIEF_RAW="$BRIEF"
+# 원장에 남길 작업명 — brief 경로 `…/tasks/<작업>/workers/<역할>/brief.md` 에서 뽑는다.
+TASK="$(printf '%s' "$BRIEF_RAW" | sed -n 's|.*/tasks/\([^/]*\)/.*|\1|p')"
+[ -n "$TASK" ] || TASK="-"
 STRIPPED="$(mktmp)"
 jq -Rs -r 'gsub("<!--.*?-->";"";"m") | gsub("\n{3,}";"\n\n")' <"$BRIEF_RAW" >"$STRIPPED"
 BRIEF="$STRIPPED"
@@ -83,6 +86,23 @@ while IFS= read -r _fe; do
 done < <(jq -r '.fallbacks[]?.api.required_env[]? // empty' <<<"$rec")
 
 redact() { sed -E 's/[A-Za-z0-9_-]{32,}/[REDACTED]/g'; }
+
+# 호출 원장 — 시도마다 1줄씩 `_local/calls.jsonl` 에 append.
+# 디스패처는 model·backend·duration·status·fallback 을 이미 다 알고 있는데 지금까지는
+# 호출이 끝나면 버려졌다. 쌓아두면 비용 가시성뿐 아니라 **품질 회귀 조기 감지**가 된다
+# (예: "gemini 폴백률이 갑자기 40%"는 집계에서 먼저 보인다).
+# `_local/` 인 이유: git 추적 안 함 + 생성기 update 때 보존되는 유일한 폴더.
+# **best-effort** — 원장 기록 실패가 워커 호출을 죽이면 안 된다.
+ledger() {  # ledger <status> <exit> <backend> <model> <duration_s>
+  mkdir -p "$ROOT/_local" 2>/dev/null || return 0
+  jq -nc --arg ts "$(date +%Y-%m-%dT%H:%M:%S)" --arg task "$TASK" --arg role "$ROLE" \
+        --arg status "$1" --argjson exit "$2" --arg backend "$3" --arg model "$4" \
+        --argjson dur "$5" \
+    '{ts:$ts, task:$task, role:$role, backend:$backend, model:$model,
+      status:$status, exit_code:$exit, duration_s:$dur}' \
+    >>"$ROOT/_local/calls.jsonl" 2>/dev/null || true
+  return 0
+}
 
 # envelope에 fallback_used를 붙여 stdout으로. **stdin(herestring)으로 넘기는 게 핵심** —
 # `jq --argjson e "$env"` 처럼 argv로 주면 워커 출력이 큰 경우 OS 인자 길이 한계에 걸려
@@ -192,6 +212,7 @@ run_backend() {
   [ "$status" = "ok" ] && [ ! -s "$out" ] && status="empty"
 
   redact <"$err" >"$errd"
+  ledger "$status" "$rc" "$ctype" "$model" "$dur"
   jq -n --arg status "$status" --argjson exit "$rc" \
         --rawfile stdout "$out" --rawfile stderr "$errd" \
         --argjson dur "$dur" --arg backend "$ctype" --arg model "$model" \
