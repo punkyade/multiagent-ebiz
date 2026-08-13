@@ -120,3 +120,11 @@
 - **고쳐야 할 것(harness)**: ① `GEMINI_API_KEY` 미설정 시 agy 타임아웃 → 폴백까지 동반 실패로 **gemini 완전 상실**. 키를 설정하거나, 폴백 부재를 조기 감지해 orchestrator에 경고. ② gemini 다중파일 작업은 backends.json timeout(300) 상향 또는 청크·인라인 강제. ③ 시간 제한 대결에선 **의존 전에 경량 스모크 1회**로 가용성 확인(안 그러면 발굴 단계에서 통째로 날림).
 - **대결 영향(공정성 메모)**: 이번 seg2-bughunt B측(하네스)은 gemini를 **발굴에 못 쓰고 후반 리뷰 1패스만** 사용 — 3모델 균등 대비 핸디캡. A측(fable5-solo)과의 자원·성능 비교 해석 시 이 제약을 반영하고, **재실험 전 위 ①~③ 수정 권장.**
 **worker**: orchestrator(agy 타임아웃 진단·자체완결 brief 우회·교차검증)
+
+## agy(gemini worker) — envelope의 model 라벨이 실제 호출 모델과 달랐다 (2026-08-13, ebiz 포크 스모크)
+- **증상**: 디스패처 정본 경로(`call_worker.sh gemini <brief>`)로 호출하면 envelope는 `model: gemini-3.1-pro-high`를 보고하는데, 모델에게 자기 이름을 물으면 **"Gemini 3.6 Flash"** 라고 답했다. status=ok·exit 0이라 **어디에도 이상 신호가 없다**.
+- **근본 원인**: `backends.json`의 `.model`은 **envelope 라벨로만** 쓰였고 agy에 전달되지 않았다. `--model` 없이 부르면 agy **전역 설정이 이긴다**. 즉 로그(`[WORKER_CALL]`)와 envelope에 남는 모델명이 사실과 다른 상태가 계속 기록되고 있었다.
+- **뒤집힌 전제**: routing.md는 "agy 모델은 전역·계정단위(`/model`)라 per-call 핀 불가"라고 적고 있었으나, **agy 1.1.12에는 `--model` 플래그가 있다**(1.0.x 기준 서술이 그대로 남아 있었음). 실측: `agy --model gemini-3.1-pro-high --prompt "네 모델명만"` → "Gemini 3.1 Pro".
+- **수정**: 디스패처에 `@model` 치환 추가(레코드 `.model` → 인자) + `args_template`을 `["--model","@model","--prompt","@brief_content"]`로. 모델명을 args에 **직접 적지 말 것** — 정본이 둘이 되면 다시 갈라진다. 회귀 가드: `tests/dispatcher/test_model_pin.sh`.
+- **일반 교훈**: ① **레코드의 설정값이 실제 호출에 전달되는지**는 별개 문제다. 전달되지 않는 값은 config가 아니라 주석이고, envelope에 실리면 **거짓 기록**이 된다(v3.5.0의 "미소비 config 제거"와 같은 계열). ② 외부 CLI는 버전업으로 플래그가 **생기기도** 한다 — 제약을 기록할 땐 버전을 함께 적고, 그 제약을 근거로 설계를 포기하기 전에 `--help`를 다시 본다. ③ 워커 스모크에서 "모델에게 자기 이름을 묻는" 한 줄이 이 계열 결함을 가장 싸게 잡는다.
+**worker**: orchestrator(무료 확인 → 유료 1회 스모크 → 재현·수정·재검증)

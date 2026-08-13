@@ -106,6 +106,9 @@ run_backend() {
       case "$a" in
         "@brief")         cmd+=("$BRIEF");;
         "@brief_content") cmd+=("$(cat -- "$BRIEF")");;
+        # @model: 레코드의 .model을 그대로 인자로. 모델명을 args_template에 또 적으면
+        # envelope의 model 라벨과 실제 호출 모델이 갈라진다(거짓 기록) — 정본은 .model 하나.
+        "@model")         cmd+=("$model");;
         *)                cmd+=("$a");;
       esac
     done <<<"$args_json"

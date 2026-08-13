@@ -37,6 +37,8 @@
       "cli": {
         "command": "agy",
         "args_template": [
+          "--model",
+          "@model",
           "--prompt",
           "@brief_content"
         ]

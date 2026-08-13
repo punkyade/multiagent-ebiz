@@ -5,6 +5,36 @@
 (정본: `generator/templates/{claude,codex}/CHANGELOG.md`)를 참조한다.
 형식은 [Keep a Changelog](https://keepachangelog.com/), 버전은 [Semantic Versioning](https://semver.org/lang/ko/)을 따른다.
 
+## [3.5.0-ebiz.5] - 2026-08-13
+
+gemini(agy) 워커 **실호출 검증 완료** — 그 과정에서 조용한 결함 1건 발견·수정.
+
+### Fixed
+- **envelope의 `model` 라벨이 실제 호출 모델과 달랐다.** 디스패처 정본 경로로 gemini를
+  호출하면 envelope는 `gemini-3.1-pro-high`를 보고하는데 실제로는 **Gemini 3.6 Flash**가
+  답했다. `status=ok`·`exit 0`이라 어디에도 이상 신호가 없어, `log.md`에 사실과 다른
+  모델명이 계속 기록되는 상태였다.
+  - 원인: `backends.json`의 `.model`이 **envelope 라벨로만** 쓰이고 agy에 전달되지 않았다.
+    `--model` 없이 부르면 agy 전역 설정이 이긴다.
+  - 수정: 디스패처에 **`@model` 치환** 추가(레코드 `.model` → 인자) +
+    gemini `args_template`을 `["--model","@model","--prompt","@brief_content"]`로
+    (claude·codex flavor. antigravity는 gemini 워커가 없어 해당 없음).
+    모델명을 args에 직접 적지 않는다 — 정본이 둘이 되면 다시 갈라진다.
+  - 회귀 가드: `tests/dispatcher/test_model_pin.sh`(4케이스).
+  - 재검증: envelope `gemini-3.1-pro-high` ↔ 실제 응답 "Gemini 3.1 Pro" 일치 확인.
+
+### Changed
+- **routing.md의 낡은 전제 교정**(claude·codex). "agy 모델은 전역·계정단위라 per-call 핀
+  불가"는 **틀렸음이 실증됐다** — agy 1.1.12에는 `--model` 플래그가 있다(1.0.x 기준 서술이
+  남아 있었음). 빠른 경로 모델도 `agy models`로 확인하도록 변경: 문서의 `gemini-3-flash`는
+  이미 목록에 없고 `3.6-flash`/`3.5-flash` 세대로 바뀌었다.
+- `_shared/learnings.md`에 [2026-08-13] 항목 추가.
+
+### 검증된 것 (KNOWN_ISSUES KI-3 잔여 항목 해소)
+- **gemini 워커 Windows 실호출 성공** — `agy` 1.1.12(네이티브 Windows), 디스패처 경유,
+  `status=ok`, 9~13초, `fallback_used=false`. 오래 미검증으로 남아 있던 항목이다.
+- agy 인증·모델 목록 조회 정상(`gemini-3.1-pro-high` 실재 확인).
+
 ## [3.5.0-ebiz.4] - 2026-08-13
 
 팀 배포 전 정합성·온보딩 도구 묶음. 전부 3 flavor 공용이고 외부 호출 0건.
