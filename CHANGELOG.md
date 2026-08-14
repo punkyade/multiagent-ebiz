@@ -5,6 +5,21 @@
 (정본: `generator/templates/{claude,codex}/CHANGELOG.md`)를 참조한다.
 형식은 [Keep a Changelog](https://keepachangelog.com/), 버전은 [Semantic Versioning](https://semver.org/lang/ko/)을 따른다.
 
+## [3.5.0-ebiz.17] - 2026-08-14
+
+### Changed
+- **ONBOARDING mat 절을 실사용 형태로 교정** (mat 저장소 소스 확인 후).
+  - 실행법: `MAT_ROOT=<폴더> mat <작업명>` → **`cd <폴더> && mat`**.
+    `MAT_ROOT`는 없으면 현재 디렉토리이고, 작업명도 생략하면 자동 선택된다.
+  - **자동 선택 규칙 명시** — ① 인자 ② `status`가 `in_progress`·`reviewing`·`waiting_*`인 것 중
+    최근 수정 ③ 없으면 목록 모달. 즉 라이프사이클대로 `status`를 갱신하면 `mat` 한 글자로
+    지금 도는 작업이 뜬다. 끝난 작업(`done`)에서 목록 모달이 뜨는 건 정상임을 함께 표기.
+  - **키 조작 표 추가** (`r`·`t`·`L`·`u`·`q`)와 2초 폴링 명시.
+  - **`u`(사용량)는 `coach` 필요 — 미설치면 빈 화면이 정상**임을 명시하고 5-2(usage-report)로
+    유도. 팀원이 고장으로 오인하는 것을 막는다.
+
+  실측 확인: `cd multiAITest && mat` → 작업이 `done`이라 목록 모달로 떨어지는 것까지 문서대로.
+
 ## [3.5.0-ebiz.16] - 2026-08-13
 
 파일럿 준비 중 실제로 걸린 두 지점을 정리.
