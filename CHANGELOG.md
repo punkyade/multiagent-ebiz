@@ -5,6 +5,21 @@
 (정본: `generator/templates/{claude,codex}/CHANGELOG.md`)를 참조한다.
 형식은 [Keep a Changelog](https://keepachangelog.com/), 버전은 [Semantic Versioning](https://semver.org/lang/ko/)을 따른다.
 
+## [3.5.0-ebiz.16] - 2026-08-13
+
+파일럿 준비 중 실제로 걸린 두 지점을 정리.
+
+### Changed
+- **validate C10 문구 교정** — `knot 마커 없음(미설치 — 정상)` 이 *"뭔가 빠졌다"* 로 읽혀
+  문의가 들어왔다(실제 발생). knot은 이 시스템의 구성요소가 아니라 **별개 선택 제품**이다.
+  → `C10 knot 관리블록(선택 구성) — 미사용 — 해당 없음`.
+  검사 능력은 그대로 — 가짜 블록 주입 시 여전히 FAIL로 잡는 것을 실측 확인했다.
+- **`docs/ONBOARDING.md`에 버전 확인 단계(3-1) 추가** — 플러그인 캐시가 낡으면 **구버전이
+  설치되는데 겉보기엔 정상이고 `validate`도 전부 PASS**라 알아채기 어렵다(파일럿 준비 중
+  실제로 `ebiz.6`이 깔려 `new-task.py`·`usage-report.py`·프리셋이 통째로 없었다).
+  `ls _shared/new-task.py _shared/usage-report.py _templates/presets` 한 줄로 팀원이 스스로
+  판단하게 하고, 캐시 경로(버전별로 쌓임)도 안내한다.
+
 ## [3.5.0-ebiz.15] - 2026-08-13
 
 ### Added

@@ -67,7 +67,9 @@ def _knot_check(instr_txt: str) -> tuple[bool, str]:
     (c)중복 마커 없음. 마커가 없으면 PASS(미설치 정상)."""
     starts, ends = instr_txt.count(KNOT_START), instr_txt.count(KNOT_END)
     if starts == 0 and ends == 0:
-        return True, "knot 마커 없음(미설치 — 정상)"
+        # 문구 주의: "미설치"라고만 쓰면 뭔가 빠진 것처럼 읽혀 문의가 들어온다(실제 발생).
+        # knot은 이 시스템의 구성요소가 아니라 별개 선택 제품이다.
+        return True, "미사용 — 해당 없음"
     if starts != 1 or ends != 1:
         return False, f"knot 마커 짝/중복 오류(start={starts}, end={ends})"
     m = re.search(re.escape(KNOT_START) + r".*?" + re.escape(KNOT_END), instr_txt, re.S)
@@ -186,7 +188,7 @@ def run_checks(target: Path, flavor: str) -> list[tuple[bool, str]]:
 
     # C10 knot 자동층(선택). 마커 부재 = 미설치 정상 PASS, 존재 시 짝·정본·중복 검사.
     k_ok, k_why = _knot_check(instr_txt)
-    check(k_ok, f"C10 knot 관리블록 — {k_why}")
+    check(k_ok, f"C10 knot 관리블록(선택 구성) — {k_why}")
 
     # (구 C12 요금가드 배선 검증은 v3.2.0부터 loadout doctor 소관 — 정본 이관)
 
