@@ -5,6 +5,18 @@
 (정본: `generator/templates/{claude,codex}/CHANGELOG.md`)를 참조한다.
 형식은 [Keep a Changelog](https://keepachangelog.com/), 버전은 [Semantic Versioning](https://semver.org/lang/ko/)을 따른다.
 
+## [3.5.0-ebiz.18] - 2026-08-14
+
+### Changed
+- **문서 정리 — 팀 배포 준비.** 둘 다 팀원이 실제로 필요한 것만 남기고 유지보수자용 서술을
+  덜어냈다. 문서에 적은 명령은 전부 실행해 확인했다.
+  - `docs/ONBOARDING.md` **272 → 170줄**. 도구 설치표 → 플러그인 → 프로젝트에 얹기 →
+    진단 → 첫 작업 → 확인 명령 3개 → mat → 교훈, 8단계 직선 흐름. 경고문은 해당 단계
+    안으로 옮기고 중복 설명을 제거.
+  - `README.md` **241 → 133줄**. "왜 쓰나"(역할 분리·승인 게이트·파일로 남음) 3줄로 시작해
+    설치·사용·라우팅 3층까지가 본문. 저장소 구조·테스트·업스트림 갱신은 `<details>`로 접어
+    유지보수자용으로 분리. ZIP·flavor 표·토폴로지 등 팀에서 안 쓰는 업스트림 서술 제거.
+
 ## [3.5.0-ebiz.17] - 2026-08-14
 
 ### Changed
